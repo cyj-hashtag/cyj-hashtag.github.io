@@ -1,7 +1,7 @@
 :root { color-scheme: light; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; background: #efeee9; color: #242c2a; }
 * { box-sizing: border-box; }
 body { margin: 0; }
-main { display: flex; justify-content: center; min-height: 100vh; padding: 28px 12px; }
+main { display: flex; justify-content: center; min-height: 100dvh; padding: 28px 12px; }
 #connection-panel { position: fixed; z-index: 3; inset: 12px 12px auto; max-width: 420px; margin: 0 auto; padding: 16px; background: #fff; border: 1px solid #e5e6df; border-radius: 8px; box-shadow: 0 4px 16px #242c2a14; }
 #connection-panel[hidden] { display: none; }
 #connection-panel p { margin: 0 0 12px; line-height: 1.6; }
@@ -14,6 +14,7 @@ canvas { display: block; width: 100%; height: auto; aspect-ratio: 375 / 812; }
 #controls button:disabled { cursor: default; }
 #controls button:focus-visible { outline: 3px solid #316b89; outline-offset: 2px; }
 #controls button:not(:disabled):hover { background: rgba(36, 44, 42, .04); }
+#controls button:not(:disabled):active { background: rgba(36, 44, 42, .09); }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: pre-wrap; border: 0; }
 dialog { border: 1px solid #e5e6df; border-radius: 12px; background: #f7f6f3; padding: 28px; width: min(360px, calc(100vw - 32px)); }
 dialog::backdrop { background: rgba(36, 44, 42, .24); }
