@@ -359,7 +359,10 @@
     if (!base) {
       try {
         const response = await fetch(new URL("./server-config.json", location.href), { cache: "no-store" });
-        if (response.ok) base = serverOrigin((await response.json()).serverUrl) || "";
+        if (response.ok) {
+          const config = await response.json();
+          base = serverOrigin(config.serverUrl) || (config.sameOrigin === true ? location.origin : "");
+        }
       } catch {
       }
     }
