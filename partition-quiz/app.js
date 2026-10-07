@@ -39,7 +39,7 @@
           if (room.phase === "lobby") this.lobby(room);
           else if (room.phase === "result" || room.phase === "complete") this.result(room);
           else if (room.phase === "exhausted") {
-            this.text("\u8FD9\u4E00\u6863\uFF0C\u9898\u76EE\u7528\u5B8C\u4E86\u3002", 24, 170, 26, C.ink, 700);
+            this.text(this.snapshot?.contentMode === "sample" ? "\u6837\u9898\u5168\u90E8\u7528\u5B8C\u4E86\u3002" : "\u8FD9\u4E00\u6863\uFF0C\u9898\u76EE\u7528\u5B8C\u4E86\u3002", 24, 170, 26, C.ink, 700);
             this.text(room.notice, 24, 242, 16, C.muted, 400, 327, 27);
             this.button("end-exhausted", "\u9000\u51FA\u623F\u95F4", 24, 410, 327, 56, () => this.action({ type: "leave" }));
           } else this.play(room);
@@ -103,12 +103,12 @@
         this.submitPending = false;
         const room = message.room;
         this.platform.describe?.(room ? [
-          `\u623F\u95F4\u7801 ${room.code}\uFF0C${room.difficulty === "easy" ? "\u7B80\u5355" : "\u56F0\u96BE"}\uFF0C\u7B2C ${room.level} \u5173\uFF0C${room.length} \u5B57\u3002`,
+          `\u623F\u95F4\u7801 ${room.code}\uFF0C${this.modeLabel(room)}\uFF0C\u7B2C ${room.level} \u5173\uFF0C${room.length ? room.length + " \u5B57" : "\u5B57\u6570\u968F\u9898\u76EE\u53D8\u5316"}\u3002`,
           `\u72B6\u6001\uFF1A${room.phase}\u3002`,
           room.players.map((p) => `${p.seat === 0 ? "A" : "B"}\uFF1A${p.name}\uFF0C${!p.connected ? "\u65AD\u7EBF" : p.ready ? "\u5DF2\u51C6\u5907" : "\u672A\u51C6\u5907"}\uFF0C${p.submitted ? "\u5DF2\u63D0\u4EA4" : "\u672A\u63D0\u4EA4"}`).join("\uFF1B"),
           `\u4F60\u7684\u7247\u6BB5\uFF1A${room.myFragment || "\u5C1A\u672A\u63A5\u9898"}\u3002`,
           room.result ? `\u5B8C\u6574\u9898\u76EE\uFF1A${room.result.prompt} \u6807\u51C6\u7B54\u6848\uFF1A${room.result.answer}\u3002${room.result.success ? "\u4E24\u4EBA\u90FD\u7B54\u5BF9\u4E86\u3002" : "\u672C\u9898\u672A\u901A\u8FC7\u3002"}` : ""
-        ].filter(Boolean).join("\n") : "\u4E24\u4EBA\u7B54\u9898\u63A5\u529B\u3002\u9009\u62E9\u96BE\u5EA6\u521B\u5EFA\u623F\u95F4\uFF0C\u6216\u7528\u516D\u4F4D\u623F\u95F4\u7801\u52A0\u5165\u3002");
+        ].filter(Boolean).join("\n") : this.snapshot.contentMode === "sample" ? "\u6837\u9898\u8BD5\u73A9\u3002\u539F\u6587\u6DF7\u5408\u62BD\u9898\uFF0C\u901A\u8FC7\u4E03\u5173\u3002\u521B\u5EFA\u623F\u95F4\uFF0C\u6216\u7528\u516D\u4F4D\u623F\u95F4\u7801\u52A0\u5165\u3002" : "\u4E24\u4EBA\u7B54\u9898\u63A5\u529B\u3002\u9009\u62E9\u96BE\u5EA6\u521B\u5EFA\u623F\u95F4\uFF0C\u6216\u7528\u516D\u4F4D\u623F\u95F4\u7801\u52A0\u5165\u3002");
       } else if (message.type === "reveal") {
         const room = this.snapshot?.room;
         if (!room || room.roundId !== message.roundId || this.handoffPending) return;
@@ -226,13 +226,19 @@
       this.text("\u5148\u63A5\u9898 \xB7 \u81EA\u7531\u4EA4\u63A5", 40, 361, 12, C.blueInk);
       this.text("B", 211, 319, 25, C.greenInk, 700);
       this.text("\u63A5\u7740\u8BFB \xB7 \u4E00\u8D77\u4F5C\u7B54", 211, 361, 12, C.greenInk);
-      this.text("\u9009\u62E9\u96BE\u5EA6", 24, 427, 12, C.muted, 500);
-      this.button("easy", this.difficulty === "easy" ? "\u7B80\u5355 \xB7 \u5DF2\u9009" : "\u7B80\u5355", 24, 452, 155, 52, () => {
-        this.difficulty = "easy";
-      }, this.difficulty === "easy" ? "primary" : "secondary");
-      this.button("hard", this.difficulty === "hard" ? "\u56F0\u96BE \xB7 \u5DF2\u9009" : "\u56F0\u96BE", 195, 452, 156, 52, () => {
-        this.difficulty = "hard";
-      }, this.difficulty === "hard" ? "primary" : "secondary");
+      const sample = this.snapshot?.contentMode === "sample";
+      if (sample) {
+        this.text("\u6837\u9898\u8BD5\u73A9", 24, 432, 21, C.ink, 600);
+        this.text("\u539F\u6587\u6DF7\u5408\u62BD\u9898\uFF0C\u901A\u8FC7\u4E03\u5173\u3002\n\u6682\u4E0D\u5206\u96BE\u5EA6\uFF0C\u5B57\u6570\u968F\u9898\u76EE\u53D8\u5316\u3002", 24, 466, 13, C.muted, 400, 327, 20);
+      } else {
+        this.text("\u9009\u62E9\u96BE\u5EA6", 24, 427, 12, C.muted, 500);
+        this.button("easy", this.difficulty === "easy" ? "\u7B80\u5355 \xB7 \u5DF2\u9009" : "\u7B80\u5355", 24, 452, 155, 52, () => {
+          this.difficulty = "easy";
+        }, this.difficulty === "easy" ? "primary" : "secondary");
+        this.button("hard", this.difficulty === "hard" ? "\u56F0\u96BE \xB7 \u5DF2\u9009" : "\u56F0\u96BE", 195, 452, 156, 52, () => {
+          this.difficulty = "hard";
+        }, this.difficulty === "hard" ? "primary" : "secondary");
+      }
       this.button("create", "\u521B\u5EFA\u4E24\u4EBA\u623F\u95F4", 24, 528, 327, 56, () => this.action({ type: "create", difficulty: this.difficulty }));
       this.button("join", "\u7528\u623F\u95F4\u7801\u52A0\u5165", 24, 597, 327, 56, () => {
         void this.join();
@@ -240,12 +246,15 @@
       this.button("nickname", this.name ? `\u6635\u79F0\uFF1A${this.name}` : "\u8BBE\u7F6E\u6635\u79F0\uFF08\u53EF\u9009\uFF09", 24, 668, 327, 44, () => {
         void this.editName();
       }, "bare");
-      this.text("\u4E24\u4EBA\u5408\u4F5C / \u6BCF\u4E2A\u96BE\u5EA6\u4E03\u5173 / \u8BD5\u73A9\u4E0D\u9650\u4F53\u529B", 24, 743, 11, C.muted, 400, 327);
-      this.text(this.snapshot?.contentMode === "approved" ? "\u5DF2\u5BA1\u6838\u9898\u5E93" : "\u5185\u90E8\u6D4B\u8BD5\u9898 \xB7 \u6B63\u5F0F\u9898\u5E93\u7B49\u5F85\u4F60\u7684\u6837\u9898", 24, 766, 11, C.muted);
+      this.text(sample ? "\u4E24\u4EBA\u5408\u4F5C / \u901A\u8FC7\u4E03\u5173 / \u8BD5\u73A9\u4E0D\u9650\u4F53\u529B" : "\u4E24\u4EBA\u5408\u4F5C / \u6BCF\u4E2A\u96BE\u5EA6\u4E03\u5173 / \u8BD5\u73A9\u4E0D\u9650\u4F53\u529B", 24, 743, 11, C.muted, 400, 327);
+      this.text(sample ? "\u4F60\u7684\u6837\u9898 \xB7 \u4FDD\u7559\u539F\u6587\uFF0C\u5C1A\u5F85\u5BA1\u6838" : this.snapshot?.contentMode === "approved" ? "\u5DF2\u5BA1\u6838\u9898\u5E93" : "\u5185\u90E8\u6D4B\u8BD5\u9898 \xB7 \u6B63\u5F0F\u9898\u5E93\u7B49\u5F85\u4F60\u7684\u6837\u9898", 24, 766, 11, C.muted);
+    }
+    modeLabel(room) {
+      return this.snapshot?.contentMode === "sample" ? "\u6837\u9898\u8BD5\u73A9" : room.difficulty === "easy" ? "\u7B80\u5355" : "\u56F0\u96BE";
     }
     roomHeader(room) {
-      this.text(`${room.difficulty === "easy" ? "\u7B80\u5355" : "\u56F0\u96BE"} / \u7B2C ${room.level} \u5173`, 24, 94, 13, C.muted, 500);
-      this.text(`${room.length} \u5B57`, 290, 94, 13, C.muted, 500);
+      this.text(`${this.modeLabel(room)} / \u7B2C ${room.level} \u5173`, 24, 94, 13, C.muted, 500);
+      this.text(room.length ? `${room.length} \u5B57` : "\u968F\u673A\u9898\u957F", 285, 94, 13, C.muted, 500);
       for (let i = 0; i < 7; i++) this.rect(24 + i * 47, 126, 39, 4, i < room.level ? C.ink : C.line, void 0, 0);
     }
     lobby(room) {
@@ -308,7 +317,7 @@
     result(room) {
       const result = room.result;
       this.text(room.phase === "complete" ? "\u4E03\u5173\uFF0C\u4E00\u8D77\u901A\u8FC7\u3002" : result.success ? "\u4E24\u4E2A\u4EBA\uFF0C\u90FD\u7B54\u5BF9\u4E86\u3002" : "\u8FD9\u6B21\u8FD8\u5DEE\u4E00\u70B9\u3002", 24, 162, 26, C.ink, 700);
-      this.text(result.timedOut ? "\u5012\u8BA1\u65F6\u7ED3\u675F\uFF0C\u672A\u4F5C\u7B54\u6309\u9519\u8BEF\u5904\u7406\u3002" : result.success ? "\u914D\u5408\u5F97\u5F53\uFF0C\u7EE7\u7EED\u628A\u7EBF\u7D22\u4F20\u4E0B\u53BB\u3002" : "\u4E0B\u4E00\u6B21\u6362\u4E00\u9053\u540C\u6863\u9898\uFF0C\u518D\u8BD5\u8BD5\u4EA4\u63A5\u4F4D\u7F6E\u3002", 24, 208, 12, C.muted);
+      this.text(result.timedOut ? "\u5012\u8BA1\u65F6\u7ED3\u675F\uFF0C\u672A\u4F5C\u7B54\u6309\u9519\u8BEF\u5904\u7406\u3002" : result.success ? "\u914D\u5408\u5F97\u5F53\uFF0C\u7EE7\u7EED\u628A\u7EBF\u7D22\u4F20\u4E0B\u53BB\u3002" : this.snapshot?.contentMode === "sample" ? "\u4E0B\u4E00\u6B21\u6362\u4E00\u9053\u6837\u9898\uFF0C\u518D\u8BD5\u8BD5\u4EA4\u63A5\u4F4D\u7F6E\u3002" : "\u4E0B\u4E00\u6B21\u6362\u4E00\u9053\u540C\u6863\u9898\uFF0C\u518D\u8BD5\u8BD5\u4EA4\u63A5\u4F4D\u7F6E\u3002", 24, 208, 12, C.muted);
       this.text("\u5B8C\u6574\u9898\u76EE", 24, 248, 11, C.muted);
       this.text(result.prompt, 24, 274, 21, C.ink, 600, 327, 30);
       this.text(`\u6807\u51C6\u7B54\u6848\uFF1A${result.answer}`, 24, 359, 15, C.ink, 600);
