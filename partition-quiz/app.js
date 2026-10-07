@@ -4,6 +4,9 @@
   var __defNormalProp = (obj, key2, value) => key2 in obj ? __defProp(obj, key2, { enumerable: true, configurable: true, writable: true, value }) : obj[key2] = value;
   var __publicField = (obj, key2, value) => __defNormalProp(obj, typeof key2 !== "symbol" ? key2 + "" : key2, value);
 
+  // src/shared/protocol.ts
+  var DEFAULT_RULES = { totalRounds: 7, firstCharIntervalMs: 1e3, secondCharIntervalMs: 500 };
+
   // src/client/app.ts
   var C = { bg: "#F7F6F3", paper: "#FFFFFF", ink: "#242C2A", muted: "#717973", line: "#E5E6DF", blue: "#DFEEF5", blueInk: "#316B89", green: "#E8EFE1", greenInk: "#4D6E42", red: "#A24A40", redBg: "#F7E7E2" };
   var F = '"PingFang SC", "Microsoft YaHei", system-ui, sans-serif';
@@ -103,12 +106,12 @@
         this.submitPending = false;
         const room = message.room;
         this.platform.describe?.(room ? [
-          `\u623F\u95F4\u7801 ${room.code}\uFF0C${this.modeLabel(room)}\uFF0C\u7B2C ${room.level} \u5173\uFF0C${room.length ? room.length + " \u5B57" : "\u5B57\u6570\u968F\u9898\u76EE\u53D8\u5316"}\u3002`,
+          `\u623F\u95F4\u7801 ${room.code}\uFF0C${this.modeLabel(room)}\uFF0C\u7B2C ${room.roundNumber}/${room.totalRounds} \u5C40\uFF0C${room.length ? room.length + " \u5B57" : "\u5B57\u6570\u968F\u9898\u76EE\u53D8\u5316"}\u3002\u5DF2\u7ED3\u7B97 ${room.completedRounds} \u5C40\uFF0C\u4E24\u4EBA\u4E00\u8D77\u7B54\u5BF9 ${room.successRounds} \u5C40\u3002`,
           `\u72B6\u6001\uFF1A${room.phase}\u3002`,
-          room.players.map((p) => `${p.seat === 0 ? "A" : "B"}\uFF1A${p.name}\uFF0C${!p.connected ? "\u65AD\u7EBF" : p.ready ? "\u5DF2\u51C6\u5907" : "\u672A\u51C6\u5907"}\uFF0C${p.submitted ? "\u5DF2\u63D0\u4EA4" : "\u672A\u63D0\u4EA4"}`).join("\uFF1B"),
+          room.players.map((p) => `${p.seat === 0 ? "A" : "B"}\uFF1A${p.name}\uFF0C\u672C\u5C40\u7B2C ${p.readingOrder} \u68D2\uFF0C${!p.connected ? "\u65AD\u7EBF" : p.ready ? "\u5DF2\u51C6\u5907" : "\u672A\u51C6\u5907"}\uFF0C${p.submitted ? "\u5DF2\u63D0\u4EA4" : "\u672A\u63D0\u4EA4"}`).join("\uFF1B"),
           `\u4F60\u7684\u7247\u6BB5\uFF1A${room.myFragment || "\u5C1A\u672A\u63A5\u9898"}\u3002`,
           room.result ? `\u5B8C\u6574\u9898\u76EE\uFF1A${room.result.prompt} \u6807\u51C6\u7B54\u6848\uFF1A${room.result.answer}\u3002${room.result.success ? "\u4E24\u4EBA\u90FD\u7B54\u5BF9\u4E86\u3002" : "\u672C\u9898\u672A\u901A\u8FC7\u3002"}` : ""
-        ].filter(Boolean).join("\n") : this.snapshot.contentMode === "sample" ? "\u6837\u9898\u8BD5\u73A9\u3002\u539F\u6587\u6DF7\u5408\u62BD\u9898\uFF0C\u901A\u8FC7\u4E03\u5173\u3002\u521B\u5EFA\u623F\u95F4\uFF0C\u6216\u7528\u516D\u4F4D\u623F\u95F4\u7801\u52A0\u5165\u3002" : "\u4E24\u4EBA\u7B54\u9898\u63A5\u529B\u3002\u9009\u62E9\u96BE\u5EA6\u521B\u5EFA\u623F\u95F4\uFF0C\u6216\u7528\u516D\u4F4D\u623F\u95F4\u7801\u52A0\u5165\u3002");
+        ].filter(Boolean).join("\n") : `\u4E24\u4EBA\u7B54\u9898\u63A5\u529B\u3002\u6BCF\u573A\u56FA\u5B9A ${message.rules.totalRounds} \u5C40\uFF0C\u6BCF\u5C40\u8F6E\u6362\u68D2\u6B21\u3002\u7B2C\u4E00\u68D2\u6BCF\u79D2\u4E00\u5B57\uFF0C\u7B2C\u4E8C\u68D2\u6BCF\u534A\u79D2\u4E00\u5B57\u3002\u521B\u5EFA\u623F\u95F4\uFF0C\u6216\u7528\u516D\u4F4D\u623F\u95F4\u7801\u52A0\u5165\u3002`);
       } else if (message.type === "reveal") {
         const room = this.snapshot?.room;
         if (!room || room.roundId !== message.roundId || this.handoffPending) return;
@@ -117,7 +120,7 @@
           room.myLastIndex = message.index;
         }
         const me = room.players.find((p) => p.id === this.snapshot.playerId);
-        room.canHandoff = me?.seat === 0 && room.phase === "reading";
+        room.canHandoff = me?.readingOrder === 1 && room.activeSeat === me.seat && room.phase === "reading";
         this.action({ type: "ack", roundId: message.roundId, index: message.index });
       } else if (message.type === "error") {
         this.handoffPending = false;
@@ -222,14 +225,15 @@
       this.text("\u4F60\u51B3\u5B9A\u5728\u54EA\u91CC\u505C\u3002\n\u628A\u5269\u4E0B\u7684\u7EBF\u7D22\u4EA4\u7ED9\u53E6\u4E00\u4F4D\u73A9\u5BB6\u3002", 26, 232, 15, C.muted, 400, 320, 25);
       this.rect(24, 305, 155, 92, C.blue);
       this.rect(195, 305, 156, 92, C.green);
-      this.text("A", 40, 319, 25, C.blueInk, 700);
-      this.text("\u5148\u63A5\u9898 \xB7 \u81EA\u7531\u4EA4\u63A5", 40, 361, 12, C.blueInk);
-      this.text("B", 211, 319, 25, C.greenInk, 700);
-      this.text("\u63A5\u7740\u8BFB \xB7 \u4E00\u8D77\u4F5C\u7B54", 211, 361, 12, C.greenInk);
+      this.text("\u7B2C\u4E00\u68D2", 40, 319, 23, C.blueInk, 700);
+      this.text("1 \u79D2 / \u5B57 \xB7 \u81EA\u7531\u4EA4\u63A5", 40, 361, 12, C.blueInk);
+      this.text("\u7B2C\u4E8C\u68D2", 211, 319, 23, C.greenInk, 700);
+      this.text("0.5 \u79D2 / \u5B57 \xB7 \u63A5\u7740\u8BFB", 211, 361, 12, C.greenInk);
       const sample = this.snapshot?.contentMode === "sample";
       if (sample) {
         this.text("\u6837\u9898\u8BD5\u73A9", 24, 432, 21, C.ink, 600);
-        this.text("\u539F\u6587\u6DF7\u5408\u62BD\u9898\uFF0C\u901A\u8FC7\u4E03\u5173\u3002\n\u6682\u4E0D\u5206\u96BE\u5EA6\uFF0C\u5B57\u6570\u968F\u9898\u76EE\u53D8\u5316\u3002", 24, 466, 13, C.muted, 400, 327, 20);
+        this.text(`\u6BCF\u573A\u56FA\u5B9A ${this.snapshot?.rules.totalRounds ?? DEFAULT_RULES.totalRounds} \u5C40\uFF0C\u6BCF\u5C40\u8F6E\u6362\u68D2\u6B21\u3002
+\u539F\u6587\u6DF7\u5408\u62BD\u9898\uFF0C\u6682\u4E0D\u5206\u96BE\u5EA6\u3002`, 24, 466, 13, C.muted, 400, 327, 20);
       } else {
         this.text("\u9009\u62E9\u96BE\u5EA6", 24, 427, 12, C.muted, 500);
         this.button("easy", this.difficulty === "easy" ? "\u7B80\u5355 \xB7 \u5DF2\u9009" : "\u7B80\u5355", 24, 452, 155, 52, () => {
@@ -246,16 +250,18 @@
       this.button("nickname", this.name ? `\u6635\u79F0\uFF1A${this.name}` : "\u8BBE\u7F6E\u6635\u79F0\uFF08\u53EF\u9009\uFF09", 24, 668, 327, 44, () => {
         void this.editName();
       }, "bare");
-      this.text(sample ? "\u4E24\u4EBA\u5408\u4F5C / \u901A\u8FC7\u4E03\u5173 / \u8BD5\u73A9\u4E0D\u9650\u4F53\u529B" : "\u4E24\u4EBA\u5408\u4F5C / \u6BCF\u4E2A\u96BE\u5EA6\u4E03\u5173 / \u8BD5\u73A9\u4E0D\u9650\u4F53\u529B", 24, 743, 11, C.muted, 400, 327);
+      this.text(`\u4E24\u4EBA\u5408\u4F5C / \u56FA\u5B9A ${this.snapshot?.rules.totalRounds ?? DEFAULT_RULES.totalRounds} \u5C40 / \u8BD5\u73A9\u4E0D\u9650\u4F53\u529B`, 24, 743, 11, C.muted, 400, 327);
       this.text(sample ? "\u4F60\u7684\u6837\u9898 \xB7 \u4FDD\u7559\u539F\u6587\uFF0C\u5C1A\u5F85\u5BA1\u6838" : this.snapshot?.contentMode === "approved" ? "\u5DF2\u5BA1\u6838\u9898\u5E93" : "\u5185\u90E8\u6D4B\u8BD5\u9898 \xB7 \u6B63\u5F0F\u9898\u5E93\u7B49\u5F85\u4F60\u7684\u6837\u9898", 24, 766, 11, C.muted);
     }
     modeLabel(room) {
       return this.snapshot?.contentMode === "sample" ? "\u6837\u9898\u8BD5\u73A9" : room.difficulty === "easy" ? "\u7B80\u5355" : "\u56F0\u96BE";
     }
     roomHeader(room) {
-      this.text(`${this.modeLabel(room)} / \u7B2C ${room.level} \u5173`, 24, 94, 13, C.muted, 500);
+      this.text(`${this.modeLabel(room)} / \u7B2C ${room.roundNumber}/${room.totalRounds} \u5C40`, 24, 94, 13, C.muted, 500);
       this.text(room.length ? `${room.length} \u5B57` : "\u968F\u673A\u9898\u957F", 285, 94, 13, C.muted, 500);
-      for (let i = 0; i < 7; i++) this.rect(24 + i * 47, 126, 39, 4, i < room.level ? C.ink : C.line, void 0, 0);
+      const gap = room.totalRounds <= 20 ? 6 : 1;
+      const width = (327 - (room.totalRounds - 1) * gap) / room.totalRounds;
+      for (let i = 0; i < room.totalRounds; i++) this.rect(24 + i * (width + gap), 126, width, 4, i < room.completedRounds ? C.ink : C.line, void 0, 0);
     }
     lobby(room) {
       this.text("\u53EB\u4E0A\u4F60\u7684\u642D\u6863", 24, 162, 29, C.ink, 700);
@@ -271,34 +277,35 @@
         this.rect(24, y, 327, 68, seat === 0 ? C.blue : C.green);
         this.text(seat === 0 ? "A" : "B", 40, y + 19, 23, seat === 0 ? C.blueInk : C.greenInk, 700);
         this.text(p ? this.short(p.name, 8) + (p.id === this.snapshot?.playerId ? "\uFF08\u4F60\uFF09" : "") : "\u7B49\u5F85\u642D\u6863\u52A0\u5165", 84, y + 15, 15, C.ink, 600, 180);
-        this.text(p ? !p.connected ? "\u8FDE\u63A5\u4E2D\u65AD" : p.ready ? "\u5DF2\u51C6\u5907" : "\u672A\u51C6\u5907" : "\u5206\u4EAB\u516D\u4F4D\u623F\u95F4\u7801", 84, y + 41, 11, C.muted);
+        this.text(p ? `\u672C\u5C40\u7B2C ${p.readingOrder} \u68D2 \xB7 ${!p.connected ? "\u8FDE\u63A5\u4E2D\u65AD" : p.ready ? "\u5DF2\u51C6\u5907" : "\u672A\u51C6\u5907"}` : "\u5206\u4EAB\u516D\u4F4D\u623F\u95F4\u7801", 84, y + 41, 11, C.muted);
       }
       const me = room.players.find((p) => p.id === this.snapshot?.playerId);
       this.button("ready", me.ready ? "\u53D6\u6D88\u51C6\u5907" : "\u6211\u51C6\u5907\u597D\u4E86", 24, 523, 327, 56, () => this.action({ type: "ready", ready: !me.ready }), me.ready ? "secondary" : "primary");
-      if (room.hostId === this.snapshot?.playerId) this.button("start", `\u5F00\u59CB\u7B2C ${room.level} \u5173`, 24, 593, 327, 56, () => this.action({ type: "start" }), "primary", room.players.length !== 2 || room.players.some((p) => !p.ready || !p.connected));
+      if (room.hostId === this.snapshot?.playerId) this.button("start", `\u5F00\u59CB\u7B2C ${room.roundNumber} \u5C40`, 24, 593, 327, 56, () => this.action({ type: "start" }), "primary", room.players.length !== 2 || room.players.some((p) => !p.ready || !p.connected));
       else this.text("\u51C6\u5907\u540E\uFF0C\u7B49\u5F85\u623F\u4E3B\u5F00\u59CB\u3002", 24, 609, 14, C.muted);
-      this.text("A \u53EF\u4EE5\u81EA\u7531\u53EB\u505C\uFF0CB \u63A5\u4F4F\u5269\u4F59\u6587\u5B57\u3002\n\u4E24\u4EBA\u63D0\u4EA4\u540E\u624D\u4F1A\u516C\u5F00\u7B54\u6848\u3002", 24, 681, 13, C.muted, 400, 327, 23);
+      this.text("\u6BCF\u5C40\u8F6E\u6362\u68D2\u6B21\uFF0C\u7B2C\u4E00\u68D2\u81EA\u7531\u53EB\u505C\u3002\n\u7B54\u5BF9\u3001\u7B54\u9519\u6216\u8D85\u65F6\uFF0C\u5747\u8BA1\u5165\u4E00\u5C40\u3002", 24, 681, 13, C.muted, 400, 327, 23);
       if (room.notice) this.text(room.notice, 24, 736, 12, C.red, 400, 327, 19);
     }
     play(room) {
       const me = room.players.find((p) => p.id === this.snapshot?.playerId);
       const paused = room.phase === "paused";
       const activeMe = room.activeSeat === me.seat && room.phase === "reading";
-      const title = paused ? "\u7B49\u642D\u6863\u56DE\u6765" : activeMe ? me.seat === 0 ? "\u4F60\u6765\u51B3\u5B9A\u4F55\u65F6\u505C" : "\u63A5\u4F4F\u5269\u4E0B\u7684\u7EBF\u7D22" : room.phase === "answering" ? "\u73B0\u5728\uFF0C\u4E00\u8D77\u4F5C\u7B54" : me.seat === 0 ? "\u4EA4\u7ED9 B \u4E86" : "\u7B49\u5F85 A \u4EA4\u63A5";
+      const partner = room.players.find((p) => p.id !== me.id);
+      const title = paused ? "\u7B49\u642D\u6863\u56DE\u6765" : activeMe ? me.readingOrder === 1 ? "\u4F60\u6765\u51B3\u5B9A\u4F55\u65F6\u505C" : "\u63A5\u4F4F\u5269\u4E0B\u7684\u7EBF\u7D22" : room.phase === "answering" ? "\u73B0\u5728\uFF0C\u4E00\u8D77\u4F5C\u7B54" : me.readingOrder === 1 ? "\u5DF2\u4EA4\u7ED9\u642D\u6863" : "\u7B49\u5F85\u7B2C\u4E00\u68D2\u4EA4\u63A5";
       this.text(title, 24, 166, 27, C.ink, 700);
-      this.text(`\u4F60\u662F ${me.seat === 0 ? "A" : "B"} \u68D2 / \u53EA\u663E\u793A\u4F60\u6536\u5230\u7684\u6587\u5B57`, 24, 215, 12, C.muted);
+      this.text(`\u4F60\u672C\u5C40\u7B2C ${me.readingOrder} \u68D2 / ${me.readingOrder === 1 ? "1 \u79D2" : "0.5 \u79D2"}\u4E00\u5B57`, 24, 215, 12, C.muted);
       this.rect(24, 254, 327, 191, me.seat === 0 ? C.blue : C.green);
       if (room.myFragment) this.text(room.myFragment, 43, 277, 25, me.seat === 0 ? C.blueInk : C.greenInk, 600, 290, 39);
       else this.text(activeMe ? "\u6587\u5B57\u6B63\u5728\u4F20\u6765\u2026" : "\u4F60\u7684\u7247\u6BB5\u8FD8\u6CA1\u5230", 43, 313, 20, C.muted, 500, 290);
       if (paused) this.text(`\u7B49\u5F85\u91CD\u8FDE \xB7 ${Math.max(0, Math.ceil(((room.resumeUntil ?? 0) - Date.now() - this.serverOffset) / 1e3))} \u79D2`, 24, 466, 14, C.red, 500);
       else if (room.deadline) this.text(`\u4F5C\u7B54\u5012\u8BA1\u65F6 ${Math.max(0, Math.ceil((room.deadline - Date.now() - this.serverOffset) / 1e3))} \u79D2`, 24, 466, 14, C.ink, 600);
-      else this.text(room.phase === "reading" ? `${room.activeSeat === 0 ? "A" : "B"} \u6B63\u5728\u63A5\u9898` : "", 24, 466, 13, C.muted);
-      if (me.seat === 0 && room.phase === "reading" && room.activeSeat === 0) {
-        this.button("handoff", this.handoffPending ? "\u6B63\u5728\u4EA4\u63A5\u2026" : "\u505C\u5728\u8FD9\u91CC\uFF0C\u4EA4\u7ED9 B", 24, 513, 327, 56, () => {
+      else this.text(room.phase === "reading" ? `${this.short(room.players.find((p) => p.seat === room.activeSeat)?.name ?? "", 8)} \u6B63\u5728\u63A5\u9898` : "", 24, 466, 13, C.muted);
+      if (me.readingOrder === 1 && activeMe) {
+        this.button("handoff", this.handoffPending ? "\u6B63\u5728\u4EA4\u63A5\u2026" : `\u505C\u5728\u8FD9\u91CC\uFF0C\u4EA4\u7ED9 ${this.short(partner.name, 7)}`, 24, 513, 327, 56, () => {
           this.handoffPending = true;
           this.action({ type: "handoff", roundId: room.roundId, lastIndex: room.myLastIndex });
         }, "primary", !room.canHandoff || this.handoffPending);
-        this.text("\u81F3\u5C11\u8BFB\u4E00\u4E2A\u5B57\uFF0C\u540E\u9762\u7ED9 B \u7559\u4E00\u4E2A\u5B57\u3002", 24, 587, 13, C.muted);
+        this.text("\u81F3\u5C11\u8BFB\u4E00\u4E2A\u5B57\uFF0C\u7ED9\u7B2C\u4E8C\u68D2\u7559\u4E00\u4E2A\u5B57\u3002", 24, 587, 13, C.muted);
       } else if (room.canAnswer && !paused) {
         this.button("input-answer", this.draft ? `\u7B54\u6848\uFF1A${this.short(this.draft, 15)}` : "\u70B9\u51FB\u586B\u5199\u4F60\u7684\u7B54\u6848", 24, 513, 327, 56, () => {
           void this.editAnswer();
@@ -316,19 +323,19 @@
     }
     result(room) {
       const result = room.result;
-      this.text(room.phase === "complete" ? "\u4E03\u5173\uFF0C\u4E00\u8D77\u901A\u8FC7\u3002" : result.success ? "\u4E24\u4E2A\u4EBA\uFF0C\u90FD\u7B54\u5BF9\u4E86\u3002" : "\u8FD9\u6B21\u8FD8\u5DEE\u4E00\u70B9\u3002", 24, 162, 26, C.ink, 700);
-      this.text(result.timedOut ? "\u5012\u8BA1\u65F6\u7ED3\u675F\uFF0C\u672A\u4F5C\u7B54\u6309\u9519\u8BEF\u5904\u7406\u3002" : result.success ? "\u914D\u5408\u5F97\u5F53\uFF0C\u7EE7\u7EED\u628A\u7EBF\u7D22\u4F20\u4E0B\u53BB\u3002" : this.snapshot?.contentMode === "sample" ? "\u4E0B\u4E00\u6B21\u6362\u4E00\u9053\u6837\u9898\uFF0C\u518D\u8BD5\u8BD5\u4EA4\u63A5\u4F4D\u7F6E\u3002" : "\u4E0B\u4E00\u6B21\u6362\u4E00\u9053\u540C\u6863\u9898\uFF0C\u518D\u8BD5\u8BD5\u4EA4\u63A5\u4F4D\u7F6E\u3002", 24, 208, 12, C.muted);
+      this.text(room.phase === "complete" ? `\u4E00\u8D77\u7B54\u5BF9 ${room.successRounds}/${room.totalRounds} \u5C40\u3002` : result.success ? "\u4E24\u4E2A\u4EBA\uFF0C\u90FD\u7B54\u5BF9\u4E86\u3002" : "\u8FD9\u6B21\u8FD8\u5DEE\u4E00\u70B9\u3002", 24, 162, 26, C.ink, 700);
+      this.text(room.phase === "complete" ? `${room.totalRounds} \u5C40\u5DF2\u7ED3\u675F \xB7 \u672C\u5C40${result.success ? "\u4E24\u4EBA\u90FD\u7B54\u5BF9" : result.timedOut ? "\u8D85\u65F6" : "\u672A\u540C\u65F6\u7B54\u5BF9"}` : `\u5DF2\u7ED3\u7B97 ${room.completedRounds}/${room.totalRounds} \u5C40 \xB7 \u4E00\u8D77\u7B54\u5BF9 ${room.successRounds} \u5C40${result.timedOut ? " \xB7 \u672C\u5C40\u8D85\u65F6" : ""}`, 24, 208, 12, C.muted);
       this.text("\u5B8C\u6574\u9898\u76EE", 24, 248, 11, C.muted);
       this.text(result.prompt, 24, 274, 21, C.ink, 600, 327, 30);
       this.text(`\u6807\u51C6\u7B54\u6848\uFF1A${result.answer}`, 24, 359, 15, C.ink, 600);
       result.players.forEach((p, i) => {
         const y = 401 + i * 113;
         this.rect(24, y, 327, 97, i === 0 ? C.blue : C.green);
-        this.text(`${i === 0 ? "A" : "B"} / ${this.short(p.name, 10)}`, 39, y + 12, 12, C.ink, 600, 175);
+        this.text(`\u7B2C ${p.readingOrder} \u68D2 / ${this.short(p.name, 8)}`, 39, y + 12, 12, C.ink, 600, 175);
         this.text(`${this.short(p.answer ?? "\u672A\u4F5C\u7B54", 6)} \xB7 ${p.correct ? "\u6B63\u786E" : "\u9519\u8BEF"}`, 210, y + 12, 12, p.correct ? C.greenInk : C.red, 600, 126);
         this.text(p.fragment || "\u672A\u63A5\u6536\u5230\u6587\u5B57", 39, y + 40, 15, C.ink, 400, 295, 22);
       });
-      if (room.hostId === this.snapshot?.playerId && room.phase !== "complete") this.button("continue", result.success ? "\u8FDB\u5165\u4E0B\u4E00\u5173" : "\u6362\u4E00\u9053\u9898\uFF0C\u518D\u6311\u6218", 24, 655, 327, 56, () => this.action({ type: "continue" }));
+      if (room.hostId === this.snapshot?.playerId && room.phase !== "complete") this.button("continue", `\u8FDB\u5165\u7B2C ${room.completedRounds + 1} \u5C40 \xB7 \u8F6E\u6362\u68D2\u6B21`, 24, 655, 327, 56, () => this.action({ type: "continue" }));
       else if (room.phase === "complete") this.button("finish", "\u7ED3\u675F\u623F\u95F4\uFF0C\u91CD\u65B0\u5F00\u59CB", 24, 655, 327, 56, () => this.action({ type: "leave" }));
       else this.text("\u7B49\u5F85\u623F\u4E3B\u7EE7\u7EED\u6311\u6218\u3002", 24, 675, 14, C.muted);
     }
