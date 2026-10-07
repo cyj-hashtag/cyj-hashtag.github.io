@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F7F6F3">
+  <title>接题 · 两人一起答对</title>
+  <link rel="stylesheet" href="./style.css">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+</head>
+<body>
+  <main aria-label="两人答题接力游戏">
+    <aside id="connection-panel" hidden aria-label="联机连接">
+      <p id="connection-message" role="status"></p>
+      <button id="configure-server" type="button">设置联机服务器</button>
+      <a id="home-link" href="../">返回个人主页</a>
+    </aside>
+    <div class="game-shell">
+      <canvas id="game" aria-label="答题接力游戏画面" width="375" height="812"></canvas>
+      <div id="controls" aria-label="游戏操作"></div>
+      <output id="game-status" class="sr-only" aria-live="polite" aria-label="游戏状态"></output>
+    </div>
+  </main>
+  <dialog id="input-dialog">
+    <form>
+      <label id="input-label" for="input-value">填写答案</label>
+      <input id="input-value" autocomplete="off" maxlength="100">
+      <div class="dialog-actions">
+        <button id="input-cancel" type="button">取消</button>
+        <button type="submit">确定</button>
+      </div>
+    </form>
+  </dialog>
+  <script src="./app.js" defer></script>
+</body>
+</html>
