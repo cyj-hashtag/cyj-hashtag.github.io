@@ -374,19 +374,24 @@
       if (name === void 0) return;
       this.action({ type: "rename", name: name.trim() });
     }
-    async copyInvitation(code) {
-      this.telemetry("invite_trigger");
+    async shareInvitation(code) {
       if (this.platform.invite) {
         try {
-          await this.platform.invite(code);
-          this.notify("\u5DF2\u89E6\u53D1\u9080\u8BF7\u5361\u7247\uFF0C\u8BF7\u9009\u62E9\u597D\u53CB\u3002\u662F\u5426\u6536\u5230\u4EE5\u597D\u53CB\u6253\u5F00\u4E3A\u51C6\u3002");
+          const request = this.platform.invite(code);
+          this.telemetry("invite_trigger");
+          const result = await request;
+          if (result === "cancelled") return;
+          this.notify(result === "wechat-requested" ? "\u672A\u5F39\u51FA\u9009\u62E9\u754C\u9762\uFF0C\u53EF\u4ECE\u53F3\u4E0A\u89D2\u201C\u2026\u201D\u8F6C\u53D1\u3002" : result === "guidance" ? "\u6309\u6307\u5F15\u53D1\u9001\u94FE\u63A5\uFF0C\u597D\u53CB\u5373\u53EF\u52A0\u5165\u623F\u95F4\u3002" : "\u5728\u5206\u4EAB\u9762\u677F\u4E2D\u9009\u62E9\u5FAE\u4FE1\u6216\u5176\u4ED6\u5E94\u7528\u3002");
         } catch {
-          this.notify("\u65E0\u6CD5\u6253\u5F00\u5206\u4EAB\uFF0C\u8BF7\u91CD\u8BD5\u3002");
+          this.notify("\u5206\u4EAB\u4E0D\u53EF\u7528\uFF0C\u53EF\u8BF7\u597D\u53CB\u8F93\u5165\u623F\u95F4\u7801\u3002");
         }
         return;
       }
+    }
+    async copyInvitation(code) {
+      this.telemetry("invite_trigger");
       try {
-        if (await this.platform.copy(this.platform.roomLink(code))) this.notify("\u9080\u8BF7\u94FE\u63A5\u5DF2\u590D\u5236\uFF0C\u53D1\u9001\u7ED9\u597D\u53CB\u5373\u53EF\u52A0\u5165\u3002");
+        if (await this.platform.copy(this.platform.roomLink(code))) this.notify("\u623F\u95F4\u94FE\u63A5\u5DF2\u590D\u5236\uFF0C\u53D1\u9001\u7ED9\u597D\u53CB\u5373\u53EF\u52A0\u5165\u3002");
       } catch {
         this.notify("\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u91CD\u8BD5\u6216\u5206\u4EAB\u623F\u95F4\u7801\u3002");
       }
@@ -488,7 +493,10 @@
     lobby(room) {
       this.text(`\u623F\u95F4 ${room.code}`, 24, 102, 30, C.ink, 600);
       this.text("\u53EB\u4E0A\u642D\u6863\uFF0C\u51C6\u5907\u5C31\u5F00\u5C40\u3002", 24, 151, 14, C.muted);
-      this.button("copy", this.platform.invite ? "\u9080\u8BF7\u597D\u53CB" : "\u590D\u5236\u9080\u8BF7\u94FE\u63A5", 24, 192, 327, 48, () => {
+      if (this.platform.invite) this.button("share", this.platform.source === "wechat" ? "\u5FAE\u4FE1\u9080\u8BF7\u597D\u53CB" : "\u5FAE\u4FE1\u5206\u4EAB", 24, 192, 156, 48, () => {
+        void this.shareInvitation(room.code);
+      }, "secondary");
+      this.button("copy", "\u590D\u5236\u623F\u95F4\u94FE\u63A5", this.platform.invite ? 195 : 24, 192, this.platform.invite ? 156 : 327, 48, () => {
         void this.copyInvitation(room.code);
       }, "secondary");
       for (let seat = 0; seat < 2; seat++) {
@@ -824,6 +832,20 @@
     return url.href;
   }
 
+  // src/client/browser-share.ts
+  function shareRoomLink(host, url, code) {
+    const guidance = () => host.guide(url).then(() => "guidance");
+    if (!host.share) return guidance();
+    try {
+      return host.share({ title: "\u63A5\u8C1C\uFF5C\u5404\u770B\u4E00\u6BB5\uFF0C\u4E00\u8D77\u7B54\u5BF9", text: `\u6765\u505A\u6211\u7684\u642D\u6863\uFF01\u623F\u95F4 ${code}\uFF0C\u70B9\u5F00\u94FE\u63A5\u5373\u53EF\u52A0\u5165\u3002`, url }).then(
+        () => "system-requested",
+        (error) => error && typeof error === "object" && "name" in error && error.name === "AbortError" ? "cancelled" : guidance()
+      );
+    } catch {
+      return guidance();
+    }
+  }
+
   // src/client/browser.ts
   var canvas = document.querySelector("#game");
   var controls = document.querySelector("#controls");
@@ -860,6 +882,53 @@
   canvas.height = 812 * dpr;
   var signatures = "";
   var current = /* @__PURE__ */ new Map();
+  var sharing = false;
+  function shareGuidance(link) {
+    const dialog = document.querySelector("#share-dialog");
+    const input = document.querySelector("#share-link");
+    const help = document.querySelector("#share-help");
+    const feedback = document.querySelector("#share-feedback");
+    const copy = document.querySelector("#share-copy");
+    const close = document.querySelector("#share-close");
+    const inWechat = /MicroMessenger/i.test(navigator.userAgent);
+    help.textContent = inWechat ? "\u70B9\u51FB\u5FAE\u4FE1\u53F3\u4E0A\u89D2\u201C\u2026\u201D \u2192 \u53D1\u9001\u7ED9\u670B\u53CB\u3002\u8F6C\u53D1\u5F53\u524D\u9875\u9762\u5373\u53EF\u9080\u8BF7\u597D\u53CB\u8FDB\u623F\u3002" : "\u5728\u624B\u673A\u5FAE\u4FE1\u4E2D\u6253\u5F00\u6B64\u94FE\u63A5\uFF0C\u518D\u70B9\u53F3\u4E0A\u89D2\u201C\u2026\u201D\u53D1\u9001\u7ED9\u670B\u53CB\uFF1B\u4E5F\u53EF\u4EE5\u590D\u5236\u94FE\u63A5\u53D1\u5230\u5FAE\u4FE1\u3002";
+    input.value = link;
+    feedback.textContent = "";
+    const original = location.href;
+    history.replaceState(null, "", link);
+    return new Promise((resolve, reject) => {
+      const cleanup = () => {
+        copy.removeEventListener("click", copyLink);
+        close.removeEventListener("click", dismiss);
+        dialog.removeEventListener("close", done);
+        if (location.href === link) history.replaceState(null, "", original);
+      };
+      const done = () => {
+        cleanup();
+        resolve();
+      };
+      const dismiss = () => dialog.close();
+      const copyLink = async () => {
+        try {
+          await navigator.clipboard.writeText(link);
+          feedback.textContent = "\u94FE\u63A5\u5DF2\u590D\u5236\uFF0C\u53D1\u7ED9\u597D\u53CB\u5373\u53EF\u52A0\u5165\u3002";
+        } catch {
+          input.focus();
+          input.select();
+          feedback.textContent = "\u8BF7\u957F\u6309\u94FE\u63A5\u6216\u6309 Ctrl+C \u590D\u5236\u3002";
+        }
+      };
+      copy.addEventListener("click", copyLink);
+      close.addEventListener("click", dismiss);
+      dialog.addEventListener("close", done, { once: true });
+      try {
+        dialog.showModal();
+      } catch (error) {
+        cleanup();
+        reject(error);
+      }
+    });
+  }
   function promptInput(title, value, maxLength, numeric = false) {
     return new Promise((resolve) => {
       const dialog = document.querySelector("#input-dialog");
@@ -977,6 +1046,18 @@
       } };
     },
     prompt: promptInput,
+    invite(code) {
+      if (sharing) return Promise.resolve("cancelled");
+      sharing = true;
+      try {
+        return shareRoomLink({ share: navigator.share ? (data) => navigator.share(data) : void 0, guide: shareGuidance }, roomInvitation(location.href, code), code).finally(() => {
+          sharing = false;
+        });
+      } catch (error) {
+        sharing = false;
+        throw error;
+      }
+    },
     async copy(text) {
       try {
         if (!navigator.clipboard) throw new Error("Clipboard unavailable");
