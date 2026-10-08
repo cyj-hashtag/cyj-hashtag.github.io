@@ -1,32 +1,33 @@
-:root { color-scheme: light; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; background: #efeee9; color: #242c2a; }
+:root { color-scheme: dark; --outer: #0e1512; --bg: #141c19; --paper: #1f2924; --ink: #edf3ef; --muted: #a0b0a7; --line: #344139; --accent: #9bd2ed; --on-primary: #141c19; --input-line: #566b5b; --hover: #edf3ef0b; --pressed: #edf3ef17; --backdrop: #0009; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; background: var(--outer); color: var(--ink); }
+:root[data-theme="light"] { color-scheme: light; --outer: #efeee9; --bg: #f7f6f3; --paper: #fff; --ink: #242c2a; --muted: #717973; --line: #e5e6df; --accent: #316b89; --on-primary: #fff; --input-line: #c7cec1; --hover: #242c2a0a; --pressed: #242c2a17; --backdrop: #242c2a3d; }
 * { box-sizing: border-box; }
 body { margin: 0; }
 main { display: flex; justify-content: center; min-height: 100dvh; padding: 28px 12px; }
-#connection-panel { position: fixed; z-index: 3; inset: 12px 12px auto; max-width: 420px; margin: 0 auto; padding: 16px; background: #fff; border: 1px solid #e5e6df; border-radius: 8px; box-shadow: 0 4px 16px #242c2a14; }
+#connection-panel { position: fixed; z-index: 3; inset: 12px 12px auto; max-width: 420px; margin: 0 auto; padding: 16px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px #0002; }
 #connection-panel[hidden] { display: none; }
 #connection-panel p { margin: 0 0 12px; line-height: 1.6; }
-#connection-panel button { font: inherit; min-height: 40px; padding: 8px 12px; border: 1px solid #242c2a; border-radius: 6px; background: #242c2a; color: white; cursor: pointer; }
-#connection-panel a { margin-left: 12px; color: #316b89; }
-.game-shell { width: 375px; max-width: 100%; height: fit-content; position: relative; background: #f7f6f3; border: 1px solid #e5e6df; border-radius: 12px; overflow: hidden; }
+#connection-panel button { font: inherit; min-height: 40px; padding: 8px 12px; border: 1px solid var(--ink); border-radius: 6px; background: var(--ink); color: var(--on-primary); cursor: pointer; }
+#connection-panel a { margin-left: 12px; color: var(--accent); }
+.game-shell { width: 375px; max-width: 100%; height: fit-content; position: relative; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 canvas { display: block; width: 100%; height: auto; aspect-ratio: 375 / 812; }
 #controls { position: absolute; inset: 0; pointer-events: none; }
 #controls button { position: absolute; pointer-events: auto; background: transparent; border: 0; color: transparent; font-size: 0; cursor: pointer; border-radius: 6px; padding: 0; }
 #controls button:disabled { cursor: default; }
-#controls button:focus-visible { outline: 3px solid #316b89; outline-offset: 2px; }
-#controls button:not(:disabled):hover { background: rgba(36, 44, 42, .04); }
-#controls button:not(:disabled):active { background: rgba(36, 44, 42, .09); }
+#controls button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+#controls button:not(:disabled):hover { background: var(--hover); }
+#controls button:not(:disabled):active { background: var(--pressed); }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: pre-wrap; border: 0; }
-dialog { border: 1px solid #e5e6df; border-radius: 12px; background: #f7f6f3; padding: 28px; width: min(360px, calc(100vw - 32px)); }
-dialog::backdrop { background: rgba(36, 44, 42, .24); }
+dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--bg); color: var(--ink); padding: 28px; width: min(360px, calc(100vw - 32px)); }
+dialog::backdrop { background: var(--backdrop); }
 label { display: block; font-size: 20px; font-weight: 600; margin-bottom: 24px; }
-input { width: 100%; background: #fff; border: 1px solid #c7cec1; border-radius: 6px; padding: 14px; font: inherit; font-size: 18px; }
-input:focus { outline: 2px solid #316b89; outline-offset: 2px; }
+input { width: 100%; background: var(--paper); color: var(--ink); border: 1px solid var(--input-line); border-radius: 6px; padding: 14px; font: inherit; font-size: 18px; }
+input:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
 .dialog-actions { display: flex; gap: 12px; margin-top: 24px; }
-.dialog-actions button { flex: 1; min-height: 48px; background: #fff; border: 1px solid #e5e6df; border-radius: 6px; font: inherit; cursor: pointer; }
-.dialog-actions button[type="submit"] { background: #242c2a; color: #fff; border-color: #242c2a; }
+.dialog-actions button { flex: 1; min-height: 48px; background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; font: inherit; cursor: pointer; }
+.dialog-actions button[type="submit"] { background: var(--ink); color: var(--on-primary); border-color: var(--ink); }
 #share-dialog h2 { font-size: 22px; margin: 0 0 16px; }
 #share-dialog p { line-height: 1.7; }
-#share-dialog .share-link-label { font-size: 13px; margin-bottom: 8px; color: #717973; }
+#share-dialog .share-link-label { font-size: 13px; margin-bottom: 8px; color: var(--muted); }
 #share-dialog input { font-size: 13px; }
 #share-feedback { min-height: 24px; font-size: 13px; }
-@media (max-width: 430px) { main { padding: 0; background: #f7f6f3; } .game-shell { width: 100%; max-width: 375px; border: 0; border-radius: 0; } }
+@media (max-width: 430px) { main { padding: 0; background: var(--bg); } .game-shell { width: 100%; max-width: 375px; border: 0; border-radius: 0; } }
