@@ -23,6 +23,88 @@
     }
     return units;
   }
+  function normalizeAnswer(answer) {
+    return answer.normalize("NFKC").trim().toLowerCase();
+  }
+  function answerMatches(answer, canonical, aliases) {
+    const value = normalizeAnswer(answer);
+    return !!value && [canonical, ...aliases].some((item) => normalizeAnswer(item) === value);
+  }
+
+  // src/client/tutorial.ts
+  var TUTORIAL_PROMPT = "\u88AB\u79F0\u4E3A\u6C99\u6F20\u4E4B\u821F\uFF0C\u80CC\u4E0A\u6709\u9A7C\u5CF0\u7684\u52A8\u7269\u662F\u4EC0\u4E48\uFF1F";
+  var Tutorial = class {
+    constructor(now, completed) {
+      __publicField(this, "completed", completed);
+      __publicField(this, "units", displayUnits(TUTORIAL_PROMPT));
+      __publicField(this, "id", `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+      __publicField(this, "phase", "first");
+      __publicField(this, "count", 0);
+      __publicField(this, "draft", "");
+      __publicField(this, "answer", null);
+      __publicField(this, "success", false);
+      __publicField(this, "notice", "\u4F60\u662F\u7B2C\u4E00\u68D2\uFF0C\u6587\u5B57\u4F1A\u9010\u5B57\u51FA\u73B0\u3002");
+      __publicField(this, "deadline");
+      __publicField(this, "next");
+      __publicField(this, "cut", 7);
+      __publicField(this, "reported", false);
+      this.next = now + 1e3;
+      this.deadline = now + 45e3;
+    }
+    get fragment() {
+      return this.units.slice(0, Math.min(this.count, this.cut)).join("");
+    }
+    get partnerFragment() {
+      return this.phase === "result" ? this.units.slice(this.cut).join("") : "";
+    }
+    tick(now) {
+      if (this.phase === "result") return;
+      if (now >= this.deadline) {
+        this.phase = "result";
+        this.notice = "\u65F6\u95F4\u5230\u4E86\uFF0C\u6162\u6162\u6765\u3002\u91CD\u8BD5\u4E00\u6B21\u5C31\u597D\u3002";
+        return;
+      }
+      if (now < this.next) return;
+      if (this.phase === "first" && this.count < 7) {
+        this.count++;
+        this.next = now + 1e3;
+        if (this.count === 7) this.notice = "\u4F60\u5DF2\u770B\u5230\u6709\u6548\u7EBF\u7D22\uFF0C\u70B9\u51FB\u4EA4\u68D2\uFF0C\u7ED9\u642D\u6863\u7559\u4E0B\u53E6\u4E00\u6BB5\u3002";
+      } else if (this.phase === "partner") {
+        if (this.count < this.units.length) {
+          this.count++;
+          this.next = now + 500;
+        } else {
+          this.phase = "result";
+          this.success = answerMatches(this.answer ?? "", "\u9A86\u9A7C", []);
+          this.notice = this.success ? "\u4F60\u548C\u6A21\u62DF\u642D\u6863\u90FD\u7B54\u5BF9\u4E86\uFF01\u53EA\u6709\u540C\u65F6\u7B54\u5BF9\u624D\u7B97\u5171\u540C\u6210\u529F\u3002" : "\u8FD9\u6B21\u6CA1\u6709\u540C\u65F6\u7B54\u5BF9\u3002\u63D0\u793A\uFF1A\u6C99\u6F20\u4E4B\u821F\u5C31\u662F\u9A86\u9A7C\uFF0C\u91CD\u8BD5\u4E00\u6B21\u3002";
+          if (this.success && !this.reported) {
+            this.reported = true;
+            this.completed();
+          }
+        }
+      }
+    }
+    handoff(now) {
+      if (this.phase !== "first") return;
+      if (this.count < 7) {
+        this.phase = "result";
+        this.notice = "\u4EA4\u68D2\u6709\u70B9\u65E9\uFF0C\u8FD8\u6CA1\u770B\u5230\u5B8C\u6574\u7EBF\u7D22\u3002\u91CD\u8BD5\uFF0C\u5148\u8BFB\u5230\u201C\u6C99\u6F20\u4E4B\u821F\u201D\u3002";
+        return;
+      }
+      this.cut = this.count;
+      this.phase = "answer";
+      this.deadline = now + 3e4;
+      this.notice = "\u7B2C\u4E00\u68D2\u4EA4\u68D2\u540E\u5C31\u80FD\u4F5C\u7B54\u3002\u586B\u5199\u7B54\u6848\uFF0C\u63D0\u4EA4\u540E\u7ACB\u5373\u9501\u5B9A\u3002";
+    }
+    submit(now) {
+      if (this.phase !== "answer" || !this.draft.trim()) return;
+      this.answer = this.draft.trim();
+      this.phase = "partner";
+      this.next = now + 500;
+      this.deadline = now + 3e4;
+      this.notice = "\u4F60\u7684\u7B54\u6848\u5DF2\u9501\u5B9A\u3002\u6A21\u62DF\u642D\u6863\u7EE7\u7EED\u9010\u5B57\u8BFB\u9898\uFF0C\u8BFB\u5B8C\u540E\u624D\u80FD\u63D0\u4EA4\u3002";
+    }
+  };
 
   // src/client/question-grid.ts
   function questionGrid(room) {
@@ -58,6 +140,11 @@
       __publicField(this, "connection", "connecting");
       __publicField(this, "status", "");
       __publicField(this, "statusUntil", 0);
+      __publicField(this, "tutorial", null);
+      __publicField(this, "historyPage", 0);
+      __publicField(this, "invitationId", "");
+      __publicField(this, "pendingEvents", []);
+      __publicField(this, "eventTimer", null);
       __publicField(this, "invitedRoom");
       __publicField(this, "leavingForInvite", false);
       __publicField(this, "draft", "");
@@ -68,6 +155,9 @@
       __publicField(this, "requestSequence", 0);
       __publicField(this, "serverOffset", 0);
       __publicField(this, "connecting", false);
+      __publicField(this, "connectionGeneration", 0);
+      __publicField(this, "takenOver", false);
+      __publicField(this, "visible", true);
       __publicField(this, "reconnectTimer", null);
       __publicField(this, "paint", () => {
         this.platform.beginFrame();
@@ -77,7 +167,9 @@
         ctx2.fillRect(0, 0, 375, 812);
         const room = this.snapshot?.room;
         if (room || this.snapshot?.returnRoom) this.top();
-        if (!room) {
+        if (this.tutorial && !room && !this.snapshot?.returnRoom) {
+          this.drawTutorial();
+        } else if (!room) {
           const pending = this.snapshot?.returnRoom;
           if (pending) this.returning(pending.code, pending.until);
           else this.home();
@@ -92,7 +184,7 @@
           } else this.play(room);
           if (room.phase === "result") this.button("leave", "\u9000\u51FA\u623F\u95F4", 24, 758, 327, 38, () => this.action({ type: "leave" }), "bare");
         }
-        const info = this.connection !== "connected" ? this.connection === "connecting" ? "\u6B63\u5728\u8FDE\u63A5\u623F\u95F4\u670D\u52A1\u5668\u2026" : "\u8FDE\u63A5\u4E2D\u65AD\uFF0C\u6B63\u5728\u91CD\u8FDE\u2026" : this.statusUntil > Date.now() ? this.status : "";
+        const info = this.statusUntil > Date.now() ? this.status : this.takenOver ? "\u6E38\u620F\u5DF2\u5728\u53E6\u4E00\u9875\u9762\u6253\u5F00\uFF0C\u8BF7\u5173\u95ED\u5F53\u524D\u9875\u9762\u3002" : this.connection !== "connected" ? this.connection === "connecting" ? "\u6B63\u5728\u8FDE\u63A5\u623F\u95F4\u670D\u52A1\u5668\u2026" : "\u8FDE\u63A5\u4E2D\u65AD\uFF0C\u6B63\u5728\u91CD\u8FDE\u2026" : "";
         if (info) {
           this.rect(16, 5, 343, 29, C.ink, void 0, 4);
           this.text(info, 25, 12, 11, C.paper, 500, 325, 15);
@@ -102,32 +194,75 @@
       });
       this.name = platform2.get("name") || "";
       this.invitedRoom = platform2.inviteCode;
+      this.invitationId = platform2.inviteId ?? this.newId();
+      try {
+        const saved = JSON.parse(platform2.get("events") ?? "[]");
+        this.pendingEvents = Array.isArray(saved) ? saved.filter((e) => e?.type === "event" && typeof e.eventId === "string").slice(-100) : [];
+      } catch {
+        this.pendingEvents = [];
+      }
+      platform2.onInvite?.((code, id) => {
+        if (this.tutorial) {
+          this.telemetry("tutorial_skip", this.tutorial.id);
+          this.tutorial = null;
+        }
+        this.invitedRoom = code;
+        this.invitationId = id;
+        this.leavingForInvite = false;
+        if (this.snapshot && this.connection === "connected") this.followInvitation(this.snapshot);
+      });
+      platform2.onVisibility?.((visible) => {
+        this.visible = visible;
+        if (!visible) {
+          this.socket?.close();
+        } else if (this.connection !== "connected") {
+          void this.connect();
+        }
+      });
       void this.connect();
       this.paint();
     }
     async connect() {
-      if (this.connecting) return;
+      if (this.connecting || !this.visible || this.connection === "connected" || this.takenOver) return;
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+      const generation = ++this.connectionGeneration;
       this.connecting = true;
       this.connection = "connecting";
       try {
         const session = await this.platform.session(this.platform.get("token"), this.name);
+        if (!this.visible || generation !== this.connectionGeneration) {
+          this.connecting = false;
+          return;
+        }
         this.platform.set("token", session.token);
         this.name = session.name;
         this.platform.set("name", this.name);
         this.socket = this.platform.connect(session.token, {
           open: () => {
+            if (generation !== this.connectionGeneration) return;
             this.connecting = false;
             this.connection = "connected";
+            this.flushEvents();
           },
-          close: () => {
+          close: (code) => {
+            if (generation !== this.connectionGeneration) return;
             this.connecting = false;
             this.connection = "offline";
+            if (code === 4001) {
+              this.takenOver = true;
+              this.notify("\u6E38\u620F\u5DF2\u5728\u53E6\u4E00\u9875\u9762\u6253\u5F00\uFF0C\u8BF7\u5173\u95ED\u5F53\u524D\u9875\u9762\u3002");
+              return;
+            }
             if (!this.reconnectTimer) this.reconnectTimer = setTimeout(() => {
               this.reconnectTimer = null;
               void this.connect();
             }, 1500);
           },
           message: (text) => {
+            if (generation !== this.connectionGeneration) return;
             try {
               this.receive(JSON.parse(text));
             } catch {
@@ -135,7 +270,8 @@
             }
           }
         });
-      } catch {
+      } catch (error) {
+        if (error instanceof Error) this.notify(error.message);
         this.connecting = false;
         this.connection = "offline";
         if (!this.reconnectTimer) this.reconnectTimer = setTimeout(() => {
@@ -151,6 +287,11 @@
         this.snapshot = message;
         this.handoffPending = false;
         this.submitPending = false;
+        if (this.tutorial && (message.room || message.returnRoom)) {
+          this.telemetry("tutorial_skip", this.tutorial.id);
+          this.tutorial = null;
+        }
+        this.platform.configureShare?.(message.room?.phase === "lobby" ? message.room.code : void 0, () => this.telemetry("invite_trigger"));
         const me = message.room?.players.find((p) => p.id === message.playerId);
         if (me && me.name !== this.name) {
           this.name = me.name;
@@ -176,12 +317,19 @@
         this.handoffPending = false;
         this.submitPending = false;
         this.notify(message.message);
+      } else if (message.type === "event_ack") {
+        this.pendingEvents = this.pendingEvents.filter((e) => e.eventId !== message.eventId);
+        this.platform.set("events", JSON.stringify(this.pendingEvents));
       } else if (message.type === "notice") this.notify(message.message);
       this.describe();
     }
     describe() {
       const snapshot = this.snapshot;
       if (!snapshot) return;
+      if (this.tutorial) {
+        this.describeTutorial();
+        return;
+      }
       const room = snapshot.room;
       this.platform.describe?.(room ? [
         `\u623F\u95F4\u7801 ${room.code}\uFF0C${this.modeLabel(room)}\uFF0C\u7B2C ${room.roundNumber}/${room.totalRounds} \u5C40\uFF0C${room.length ? room.length + " \u5B57" : "\u5B57\u6570\u968F\u9898\u76EE\u53D8\u5316"}\u3002\u5DF2\u7ED3\u7B97 ${room.completedRounds} \u5C40\uFF0C\u4E24\u4EBA\u4E00\u8D77\u7B54\u5BF9 ${room.successRounds} \u5C40\u3002`,
@@ -190,6 +338,7 @@
         room.returnUntil ? "\u642D\u6863\u5DF2\u9000\u51FA\uFF0C\u7B49\u5F85\u8FD4\u56DE\u623F\u95F4\u3002" : "",
         room.roundId ? `\u7C73\u5B57\u683C ${room.length} \u4E2A\uFF0C\u672B\u5C3E\u95EE\u53F7\u3002\u5DF2\u8BFB ${room.revealedCount}/${room.length} \u5B57\uFF0C\u6307\u9488\uFF1A${room.revealedCount >= room.length ? "\u672B\u5C3E\u95EE\u53F7" : `\u7B2C ${room.revealedCount + 1} \u683C`}\u3002` : "",
         `\u4F60\u7684\u7247\u6BB5\uFF1A${room.myFragment || "\u5C1A\u672A\u63A5\u9898"}\u3002`,
+        room.phase === "complete" ? `\u4E03\u5C40\u6210\u7EE9\uFF1A${room.history.map((r) => `${r.roundNumber}\u5C40${r.success ? "\u5171\u540C\u7B54\u5BF9" : "\u672A\u5171\u540C\u7B54\u5BF9"}`).join("\uFF1B")}\u3002` : "",
         room.result ? `\u5B8C\u6574\u9898\u76EE\uFF1A${room.result.prompt} \u6807\u51C6\u7B54\u6848\uFF1A${room.result.answer}\u3002${room.result.success ? "\u4E24\u4EBA\u90FD\u7B54\u5BF9\u4E86\u3002" : "\u672C\u9898\u672A\u901A\u8FC7\u3002"}` : ""
       ].filter(Boolean).join("\n") : snapshot.returnRoom ? `\u5DF2\u9000\u51FA\u623F\u95F4 ${snapshot.returnRoom.code}\uFF0C\u53EF\u5728\u5012\u8BA1\u65F6\u7ED3\u675F\u524D\u8FD4\u56DE\u623F\u95F4\u3002` : `\u4E24\u4EBA\u7B54\u9898\u63A5\u529B\u3002\u6BCF\u573A\u56FA\u5B9A ${snapshot.rules.totalRounds} \u5C40\uFF0C\u6BCF\u5C40\u8F6E\u6362\u68D2\u6B21\u3002\u521B\u5EFA\u623F\u95F4\uFF0C\u6216\u7528\u516D\u4F4D\u623F\u95F4\u7801\u52A0\u5165\u3002`);
     }
@@ -210,11 +359,8 @@
       this.invitedRoom = void 0;
       this.platform.clearInvite?.();
       if (snapshot.room?.code === code) return;
-      if (snapshot.room || snapshot.returnRoom) {
-        this.notify("\u8BF7\u5148\u7ED3\u675F\u5F53\u524D\u6E38\u620F\uFF0C\u518D\u6253\u5F00\u597D\u53CB\u7684\u9080\u8BF7\u94FE\u63A5\u3002");
-        return;
-      }
-      this.action({ type: "join", code });
+      this.leavingForInvite = false;
+      this.action({ type: "join", code, source: this.platform.source === "wechat" ? "wechat_invite" : "browser_invite", inviteId: this.invitationId });
     }
     action(action) {
       if (this.connection !== "connected") {
@@ -229,6 +375,16 @@
       this.action({ type: "rename", name: name.trim() });
     }
     async copyInvitation(code) {
+      this.telemetry("invite_trigger");
+      if (this.platform.invite) {
+        try {
+          await this.platform.invite(code);
+          this.notify("\u5DF2\u89E6\u53D1\u9080\u8BF7\u5361\u7247\uFF0C\u8BF7\u9009\u62E9\u597D\u53CB\u3002\u662F\u5426\u6536\u5230\u4EE5\u597D\u53CB\u6253\u5F00\u4E3A\u51C6\u3002");
+        } catch {
+          this.notify("\u65E0\u6CD5\u6253\u5F00\u5206\u4EAB\uFF0C\u8BF7\u91CD\u8BD5\u3002");
+        }
+        return;
+      }
       try {
         if (await this.platform.copy(this.platform.roomLink(code))) this.notify("\u9080\u8BF7\u94FE\u63A5\u5DF2\u590D\u5236\uFF0C\u53D1\u9001\u7ED9\u597D\u53CB\u5373\u53EF\u52A0\u5165\u3002");
       } catch {
@@ -290,7 +446,7 @@
       return lines;
     }
     button(id, label, x, y, width, height, press, style = "primary", disabled = false) {
-      const enabled = !disabled && this.connection === "connected";
+      const enabled = !disabled && (this.connection === "connected" || !!this.tutorial || id === "tutorial");
       const bg = style === "primary" ? enabled ? C.ink : "#D6D9D2" : style === "secondary" ? C.paper : C.bg;
       this.rect(x, y, width, height, bg, style === "secondary" ? C.line : void 0, 6);
       const ctx2 = this.platform.context;
@@ -300,7 +456,7 @@
       this.buttons.push({ id, label, x, y, width, height, disabled: !enabled, press });
     }
     top() {
-      this.text("\u63A5\u9898", 24, 40, 12, C.muted, 600);
+      this.text("\u63A5\u8C1C", 24, 40, 12, C.muted, 600);
       const ctx2 = this.platform.context;
       ctx2.strokeStyle = C.line;
       ctx2.beginPath();
@@ -309,12 +465,13 @@
       ctx2.stroke();
     }
     home() {
-      this.text("\u63A5\u9898", 24, 220, 52, C.ink, 700, 327, 66);
+      this.text("\u63A5\u8C1C", 24, 220, 52, C.ink, 700, 327, 66);
       this.text("\u5404\u770B\u4E00\u6BB5\uFF0C\u4E00\u8D77\u7B54\u5BF9\u3002", 26, 306, 18, C.muted);
       this.button("create", "\u521B\u5EFA\u4E24\u4EBA\u623F\u95F4", 24, 446, 327, 56, () => this.action({ type: "create", difficulty: "easy" }));
       this.button("join", "\u7528\u623F\u95F4\u7801\u52A0\u5165", 24, 520, 327, 56, () => {
         void this.join();
       }, "secondary");
+      this.button("tutorial", this.platform.get("tutorial.completed") === "true" ? "\u518D\u6B21\u5B66\u4E60\u73A9\u6CD5" : "\u5355\u4EBA\u5B66\u4E60\u73A9\u6CD5", 24, 592, 327, 44, () => this.startTutorial(), "bare");
       this.text(`\u4E24\u4EBA \xB7 ${this.snapshot?.rules.totalRounds ?? DEFAULT_RULES.totalRounds} \u5C40 \xB7 \u6BCF\u5C40\u6362\u68D2`, 26, 624, 12, C.muted);
     }
     modeLabel(room) {
@@ -331,7 +488,7 @@
     lobby(room) {
       this.text(`\u623F\u95F4 ${room.code}`, 24, 102, 30, C.ink, 600);
       this.text("\u53EB\u4E0A\u642D\u6863\uFF0C\u51C6\u5907\u5C31\u5F00\u5C40\u3002", 24, 151, 14, C.muted);
-      this.button("copy", "\u590D\u5236\u9080\u8BF7\u94FE\u63A5", 24, 192, 327, 48, () => {
+      this.button("copy", this.platform.invite ? "\u9080\u8BF7\u597D\u53CB" : "\u590D\u5236\u9080\u8BF7\u94FE\u63A5", 24, 192, 327, 48, () => {
         void this.copyInvitation(room.code);
       }, "secondary");
       for (let seat = 0; seat < 2; seat++) {
@@ -513,9 +670,13 @@
       return Math.max(0, Math.ceil((until - Date.now() - this.serverOffset) / 1e3));
     }
     result(room) {
+      if (room.phase === "complete") {
+        this.complete(room);
+        return;
+      }
       const result = room.result;
-      this.text(room.phase === "complete" ? `\u4E00\u8D77\u7B54\u5BF9 ${room.successRounds}/${room.totalRounds} \u5C40\u3002` : result.success ? "\u4E24\u4E2A\u4EBA\uFF0C\u90FD\u7B54\u5BF9\u4E86\u3002" : "\u8FD9\u6B21\u8FD8\u5DEE\u4E00\u70B9\u3002", 24, 162, 26, C.ink, 700);
-      this.text(room.phase === "complete" ? `${room.totalRounds} \u5C40\u5DF2\u7ED3\u675F \xB7 \u672C\u5C40${result.success ? "\u4E24\u4EBA\u90FD\u7B54\u5BF9" : result.timedOut ? "\u8D85\u65F6" : "\u672A\u540C\u65F6\u7B54\u5BF9"}` : `\u5DF2\u7ED3\u7B97 ${room.completedRounds}/${room.totalRounds} \u5C40 \xB7 \u4E00\u8D77\u7B54\u5BF9 ${room.successRounds} \u5C40${result.timedOut ? " \xB7 \u672C\u5C40\u8D85\u65F6" : ""}`, 24, 208, 12, C.muted);
+      this.text(result.success ? "\u4E24\u4E2A\u4EBA\uFF0C\u90FD\u7B54\u5BF9\u4E86\u3002" : "\u8FD9\u6B21\u8FD8\u5DEE\u4E00\u70B9\u3002", 24, 162, 26, C.ink, 700);
+      this.text(`\u5DF2\u7ED3\u7B97 ${room.completedRounds}/${room.totalRounds} \u5C40 \xB7 \u4E00\u8D77\u7B54\u5BF9 ${room.successRounds} \u5C40${result.timedOut ? " \xB7 \u672C\u5C40\u8D85\u65F6" : ""}`, 24, 208, 12, C.muted);
       this.text("\u5B8C\u6574\u9898\u76EE", 24, 248, 11, C.muted);
       const promptEnd = this.text(result.prompt, 24, 274, 21, C.ink, 600, 327, 30);
       const answerY = Math.max(359, promptEnd + 14);
@@ -534,9 +695,101 @@
       const controlsY = Math.max(655, nextY + 28);
       if (room.returnUntil) this.text(`\u7B49\u5F85\u642D\u6863\u8FD4\u56DE \xB7 ${this.secondsUntil(room.returnUntil)} \u79D2`, 24, controlsY - 26, 13, C.red, 600);
       const waiting = room.players.some((p) => p.left || !p.connected);
-      if (room.hostId === this.snapshot?.playerId && room.phase !== "complete") this.button("continue", `\u8FDB\u5165\u7B2C ${room.completedRounds + 1} \u5C40 \xB7 \u8F6E\u6362\u68D2\u6B21`, 24, controlsY, 327, 56, () => this.action({ type: "continue" }), "primary", waiting);
-      else if (room.phase === "complete") this.button("finish", "\u9000\u51FA\u623F\u95F4", 24, controlsY, 327, 56, () => this.action({ type: "leave" }));
+      if (room.hostId === this.snapshot?.playerId) this.button("continue", `\u8FDB\u5165\u7B2C ${room.completedRounds + 1} \u5C40 \xB7 \u8F6E\u6362\u68D2\u6B21`, 24, controlsY, 327, 56, () => this.action({ type: "continue" }), "primary", waiting);
       else this.text("\u7B49\u5F85\u623F\u4E3B\u7EE7\u7EED\u6311\u6218\u3002", 24, controlsY + 20, 14, C.muted);
+    }
+    newId() {
+      return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+    flushEvents() {
+      if (this.eventTimer || this.connection !== "connected" || !this.pendingEvents.length) return;
+      this.action(this.pendingEvents[0]);
+      this.eventTimer = setTimeout(() => {
+        this.eventTimer = null;
+        this.flushEvents();
+      }, 150);
+    }
+    telemetry(event, runId) {
+      const value = { type: "event", event, eventId: (runId ?? this.newId()) + "-" + event, source: this.platform.source ?? "browser", ...event === "invite_trigger" ? { roomCode: this.snapshot?.room?.code } : {} };
+      this.pendingEvents.push(value);
+      this.pendingEvents = this.pendingEvents.slice(-100);
+      this.platform.set("events", JSON.stringify(this.pendingEvents));
+      this.flushEvents();
+    }
+    startTutorial() {
+      if (this.invitedRoom || this.snapshot?.room || this.snapshot?.returnRoom) return;
+      this.tutorial = new Tutorial(Date.now(), () => {
+        this.platform.set("tutorial.completed", "true");
+        if (this.tutorial) this.telemetry("tutorial_complete", this.tutorial.id);
+      });
+      this.telemetry("tutorial_start", this.tutorial.id);
+    }
+    describeTutorial() {
+      const t = this.tutorial;
+      this.platform.describe?.(`\u6559\u5B66\u72B6\u6001\uFF1A${t.phase}\u3002\u4F60\uFF1A\u7B2C\u4E00\u68D2\uFF1B\u6A21\u62DF\u642D\u6863\uFF1A\u7B2C\u4E8C\u68D2\u3002\u5DF2\u8BFB ${t.count}/${t.units.length} \u5B57\u3002\u4F60\u7684\u7247\u6BB5\uFF1A${t.fragment}\u3002${t.notice}\u3002${t.answer !== null ? "\u4F60\u7684\u7B54\u6848\u5DF2\u9501\u5B9A\u3002" : ""}${t.phase === "result" ? `\u5B8C\u6574\u9898\u76EE\uFF1A${TUTORIAL_PROMPT} \u6807\u51C6\u7B54\u6848\uFF1A\u9A86\u9A7C\u3002\u642D\u6863\u7247\u6BB5\uFF1A${t.partnerFragment}\u3002\u6A21\u62DF\u642D\u6863\u7B54\u6848\uFF1A\u9A86\u9A7C\u3002` : "\u7ED3\u7B97\u524D\u770B\u4E0D\u5230\u5BF9\u65B9\u7247\u6BB5\u548C\u7B54\u6848\u3002"}`);
+    }
+    drawTutorial() {
+      const t = this.tutorial;
+      t.tick(Date.now());
+      this.describeTutorial();
+      this.top();
+      this.text("\u5355\u4EBA\u4EA4\u4E92\u6559\u5B66", 24, 100, 30, C.ink, 700);
+      this.text("\u4F60 / \u7B2C\u4E00\u68D2     \u6A21\u62DF\u642D\u6863 / \u7B2C\u4E8C\u68D2", 24, 151, 14, C.muted);
+      this.text(t.notice, 24, 198, 18, C.ink, 600, 327, 29);
+      this.rect(24, 306, 327, 125, C.blue);
+      this.text(t.fragment || "\u7B49\u5F85\u7B2C\u4E00\u4E2A\u5B57\u2026", 40, 332, 26, C.blueInk, 600, 295, 36);
+      this.text(`\u9010\u5B57\u8BFB\u9898 ${t.count}/${t.units.length} \xB7 ${t.phase === "result" ? "\u63ED\u6653" : Math.max(0, Math.ceil((t.deadline - Date.now()) / 1e3)) + " \u79D2"}`, 24, 449, 13, C.muted);
+      if (t.phase === "first") this.button("tutorial-handoff", "\u4EA4\u68D2\u7ED9\u6A21\u62DF\u642D\u6863", 24, 490, 327, 56, () => t.handoff(Date.now()));
+      else if (t.phase === "answer") {
+        this.button("tutorial-input", t.draft ? `\u7B54\u6848\uFF1A${this.short(t.draft, 15)}` : "\u586B\u5199\u6559\u5B66\u7B54\u6848", 24, 490, 327, 56, () => {
+          void this.platform.prompt("\u586B\u5199\u6559\u5B66\u7B54\u6848", t.draft, 100).then((v) => {
+            if (this.tutorial === t && t.phase === "answer" && v !== void 0) t.draft = v.trim();
+          });
+        }, "secondary");
+        this.button("tutorial-submit", "\u63D0\u4EA4\u5E76\u9501\u5B9A\u6559\u5B66\u7B54\u6848", 24, 560, 327, 56, () => t.submit(Date.now()), "primary", !t.draft);
+      } else if (t.phase === "partner") {
+        this.text(`\u4F60\u7684\u7B54\u6848\uFF1A${this.short(t.answer ?? "", 15)} \xB7 \u5DF2\u9501\u5B9A`, 24, 493, 20, C.ink, 600);
+        this.text("\u6A21\u62DF\u642D\u6863\u6B63\u5728\u8BFB\u81EA\u5DF1\u7684\u7247\u6BB5\u3002\n\u7ED3\u7B97\u524D\uFF0C\u4F60\u770B\u4E0D\u5230\u5BF9\u65B9\u7247\u6BB5\u548C\u7B54\u6848\u3002", 24, 542, 15, C.muted, 400, 327, 27);
+        this.text(`\u6A21\u62DF\u642D\u6863\u5DF2\u8BFB ${Math.max(0, t.count - 7)}/${t.units.length - 7} \u5B57`, 24, 612, 14, C.greenInk, 600);
+      } else {
+        this.text(`\u5B8C\u6574\u9898\u76EE\uFF1A${TUTORIAL_PROMPT}
+\u6807\u51C6\u7B54\u6848\uFF1A\u9A86\u9A7C \xB7 \u6A21\u62DF\u642D\u6863\u7B54\u6848\uFF1A\u9A86\u9A7C`, 24, 480, 15, C.ink, 400, 327, 25);
+        this.button("tutorial-retry", "\u91CD\u8BD5\u6559\u5B66", 24, 600, 155, 48, () => this.startTutorial(), "secondary");
+        this.button("tutorial-done", "\u8FD4\u56DE\u9996\u9875", 195, 600, 156, 48, () => {
+          if (!t.success) this.telemetry("tutorial_skip", t.id);
+          this.tutorial = null;
+        }, "primary");
+      }
+      if (!t.success) this.button("tutorial-skip", "\u8DF3\u8FC7\u6559\u5B66", 24, 698, 155, 44, () => {
+        this.telemetry("tutorial_skip", t.id);
+        this.tutorial = null;
+      }, "bare");
+      this.button("tutorial-exit", "\u9000\u51FA\u6559\u5B66", 195, 698, 156, 44, () => {
+        if (!t.success) this.telemetry("tutorial_skip", t.id);
+        this.tutorial = null;
+      }, "bare");
+    }
+    complete(room) {
+      this.text(`\u4E00\u8D77\u7B54\u5BF9 ${room.successRounds}/${room.totalRounds} \u5C40\u3002`, 24, 164, 28, C.ink, 700);
+      const results = room.history;
+      this.historyPage = Math.min(this.historyPage, Math.max(0, results.length - 1));
+      const r = results[this.historyPage] ?? room.result;
+      this.text(results.map((x) => `${x.roundNumber}${x.success ? "\u2713" : "\xD7"}`).join("   "), 24, 212, 18, C.muted);
+      this.text(`\u7B2C ${r.roundNumber} \u5C40\u5B8C\u6574\u6210\u7EE9`, 24, 262, 14, C.muted);
+      this.text(r.prompt, 24, 297, 20, C.ink, 600, 327, 29);
+      this.text(`\u6807\u51C6\u7B54\u6848\uFF1A${r.answer}`, 24, 402, 15, C.ink, 600);
+      this.text(r.players.map((p) => `${this.short(p.name, 7)} / \u7B2C${p.readingOrder}\u68D2\uFF1A${this.short(p.answer ?? "\u672A\u7B54", 12)} \xB7 ${p.correct ? "\u6B63\u786E" : "\u9519\u8BEF"}
+\u7247\u6BB5\uFF1A${p.fragment}`).join("\n"), 24, 438, 13, C.muted, 400, 327, 20);
+      this.button("history-prev", "\u4E0A\u4E00\u5C40\u6210\u7EE9", 24, 565, 155, 38, () => {
+        this.historyPage--;
+      }, "secondary", this.historyPage === 0);
+      this.button("history-next", "\u4E0B\u4E00\u5C40\u6210\u7EE9", 195, 565, 156, 38, () => {
+        this.historyPage++;
+      }, "secondary", this.historyPage >= results.length - 1);
+      const me = room.players.find((p) => p.id === this.snapshot?.playerId);
+      this.text(room.notice || room.players.map((p) => `${this.short(p.name, 6)}\uFF1A${p.left ? "\u5DF2\u9000\u51FA" : !p.connected ? "\u65AD\u7EBF" : p.ready ? "\u5DF2\u51C6\u5907" : "\u672A\u51C6\u5907"}`).join(" / "), 24, 616, 12, room.notice ? C.red : C.muted, 400, 327, 18);
+      this.button("rematch", me.ready ? "\u53D6\u6D88\u51C6\u5907" : "\u51C6\u5907\u518D\u6765\u4E00\u573A", 24, 669, 327, 52, () => this.action({ type: "rematch", ready: !me.ready, matchId: room.matchId }), me.ready ? "secondary" : "primary", room.players.some((p) => p.left));
+      this.button("finish", "\u9000\u51FA\u623F\u95F4", 24, 741, 327, 44, () => this.action({ type: "leave" }), "bare");
     }
     short(value, limit) {
       const chars = Array.from(value);
@@ -644,6 +897,7 @@
   }
   var platform = {
     context: ctx,
+    source: "browser",
     describe(text) {
       document.querySelector("#game-status").textContent = text;
     },
@@ -690,10 +944,12 @@
       }
     },
     get(name) {
-      return sessionStorage.getItem(key(name));
+      const value = localStorage.getItem(key(name)) ?? sessionStorage.getItem(key(name));
+      if (value !== null) localStorage.setItem(key(name), value);
+      return value;
     },
     set(name, value) {
-      sessionStorage.setItem(key(name), value);
+      localStorage.setItem(key(name), value);
     },
     async session(token, name) {
       const origin = await endpoint;
@@ -713,7 +969,7 @@
       const ws = new WebSocket(`${base.replace(/^http/, "ws")}/socket?token=${encodeURIComponent(token)}`);
       ws.addEventListener("open", handlers.open);
       ws.addEventListener("message", (event) => handlers.message(String(event.data)));
-      ws.addEventListener("close", handlers.close);
+      ws.addEventListener("close", (event) => handlers.close(event.code));
       return { send(text) {
         if (ws.readyState === WebSocket.OPEN) ws.send(text);
       }, close() {
