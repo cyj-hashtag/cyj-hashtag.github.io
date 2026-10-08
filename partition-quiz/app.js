@@ -5,7 +5,7 @@
   var __publicField = (obj, key2, value) => __defNormalProp(obj, typeof key2 !== "symbol" ? key2 + "" : key2, value);
 
   // src/shared/protocol.ts
-  var DEFAULT_RULES = { totalRounds: 7, firstCharIntervalMs: 1e3, secondCharIntervalMs: 500 };
+  var DEFAULT_RULES = { totalRounds: 7, firstCharIntervalMs: 1e3, secondCharIntervalMs: 500, resultDelayMs: 5e3 };
 
   // src/shared/text.ts
   var ignored = /[\p{P}\s]/u;
@@ -60,8 +60,13 @@
     tick(now) {
       if (this.phase === "result") return;
       if (now >= this.deadline) {
-        this.phase = "result";
-        this.notice = "\u65F6\u95F4\u5230\u4E86\uFF0C\u6162\u6162\u6765\u3002\u91CD\u8BD5\u4E00\u6B21\u5C31\u597D\u3002";
+        if (this.phase === "answer" && this.draft.trim()) {
+          this.submit(now);
+          this.notice = "\u65F6\u95F4\u5230\u4E86\uFF0C\u5DF2\u81EA\u52A8\u9501\u5B9A\u586B\u5199\u7684\u7B54\u6848\u3002\u7B2C\u4E8C\u68D2\u63A5\u68D2\u540E\u5C31\u80FD\u4F5C\u7B54\u3002";
+        } else {
+          this.phase = "result";
+          this.notice = "\u65F6\u95F4\u5230\u4E86\uFF0C\u6162\u6162\u6765\u3002\u91CD\u8BD5\u4E00\u6B21\u5C31\u597D\u3002";
+        }
         return;
       }
       if (now < this.next) return;
@@ -94,7 +99,7 @@
       this.cut = this.count;
       this.phase = "answer";
       this.deadline = now + 3e4;
-      this.notice = "\u7B2C\u4E00\u68D2\u4EA4\u68D2\u540E\u5C31\u80FD\u4F5C\u7B54\u3002\u586B\u5199\u7B54\u6848\uFF0C\u63D0\u4EA4\u540E\u7ACB\u5373\u9501\u5B9A\u3002";
+      this.notice = "\u7B2C\u4E00\u68D2\u4EA4\u68D2\u540E\u5C31\u80FD\u4F5C\u7B54\u3002\u63D0\u4EA4\u540E\u9501\u5B9A\uFF1B\u5230\u65F6\u81EA\u52A8\u63D0\u4EA4\u5DF2\u586B\u5199\u7684\u7B54\u6848\u3002";
     }
     submit(now) {
       if (this.phase !== "answer" || !this.draft.trim()) return;
@@ -102,7 +107,7 @@
       this.phase = "partner";
       this.next = now + 500;
       this.deadline = now + 3e4;
-      this.notice = "\u4F60\u7684\u7B54\u6848\u5DF2\u9501\u5B9A\u3002\u6A21\u62DF\u642D\u6863\u7EE7\u7EED\u9010\u5B57\u8BFB\u9898\uFF0C\u8BFB\u5B8C\u540E\u624D\u80FD\u63D0\u4EA4\u3002";
+      this.notice = "\u4F60\u7684\u7B54\u6848\u5DF2\u9501\u5B9A\u3002\u7B2C\u4E8C\u68D2\u63A5\u68D2\u540E\u5C31\u80FD\u4F5C\u7B54\uFF0C\u6A21\u62DF\u642D\u6863\u7EE7\u7EED\u9010\u5B57\u8BFB\u9898\u3002";
     }
   };
 
@@ -210,6 +215,9 @@
       __publicField(this, "invitedRoom");
       __publicField(this, "leavingForInvite", false);
       __publicField(this, "draft", "");
+      __publicField(this, "draftRevision", 0);
+      __publicField(this, "answerPromptRoundId", null);
+      __publicField(this, "tutorialPrompt", null);
       __publicField(this, "name");
       __publicField(this, "handoffPending", false);
       __publicField(this, "stopPressed", false);
@@ -222,12 +230,17 @@
       __publicField(this, "visible", true);
       __publicField(this, "reconnectTimer", null);
       __publicField(this, "paint", () => {
+        if (this.tutorialPrompt && (this.tutorial !== this.tutorialPrompt || this.tutorialPrompt.phase !== "answer")) {
+          this.platform.cancelPrompt?.();
+          this.tutorialPrompt = null;
+        }
         this.platform.beginFrame();
         this.buttons = [];
         const ctx2 = this.platform.context;
         ctx2.fillStyle = this.colors.bg;
         ctx2.fillRect(0, 0, 375, 812);
         const room = this.snapshot?.room;
+        if (room?.phase === "result") this.describe();
         if (room || this.snapshot?.returnRoom) this.top();
         if (this.tutorial && !room && !this.snapshot?.returnRoom) {
           this.drawTutorial();
@@ -311,6 +324,7 @@
             if (generation !== this.connectionGeneration) return;
             this.connecting = false;
             this.connection = "connected";
+            this.submitPending = false;
             this.flushEvents();
           },
           close: (code) => {
@@ -349,10 +363,20 @@
     receive(message) {
       if ("serverNow" in message) this.serverOffset = message.serverNow - Date.now();
       if (message.type === "snapshot") {
-        if (message.room?.roundId !== this.snapshot?.room?.roundId) this.draft = "";
+        const changedRound = message.room?.roundId !== this.snapshot?.room?.roundId;
+        const revision = message.room?.myDraftRevision ?? 0;
+        if (changedRound || revision >= this.draftRevision) {
+          this.draft = message.room?.myDraft ?? "";
+          this.draftRevision = revision;
+        }
         this.snapshot = message;
         this.handoffPending = false;
-        this.submitPending = false;
+        if (changedRound || message.room?.myAnswer !== null) this.submitPending = false;
+        if (this.answerPromptRoundId && (this.answerPromptRoundId !== message.room?.roundId || message.room?.myAnswer !== null || !["reading", "answering", "paused"].includes(message.room.phase))) {
+          this.platform.cancelPrompt?.();
+          this.answerPromptRoundId = null;
+        }
+        if (message.room?.canAnswer && revision < this.draftRevision) this.action({ type: "draft", roundId: message.room.roundId, answer: this.draft, revision: this.draftRevision });
         if (this.tutorial && (message.room || message.returnRoom)) {
           this.telemetry("tutorial_skip", this.tutorial.id);
           this.tutorial = null;
@@ -366,7 +390,7 @@
         this.followInvitation(message);
       } else if (message.type === "reveal") {
         const room = this.snapshot?.room;
-        if (!room || room.roundId !== message.roundId || this.handoffPending) return;
+        if (!room || room.phase !== "reading" || room.roundId !== message.roundId || this.handoffPending) return;
         if (message.index > room.myLastIndex) {
           room.myFragment += message.text;
           room.myLastIndex = message.index;
@@ -398,15 +422,17 @@
       }
       const room = snapshot.room;
       this.platform.describe?.(room ? [
-        `\u623F\u95F4\u7801 ${room.code}\uFF0C${this.modeLabel(room)}\uFF0C\u7B2C ${room.roundNumber}/${room.totalRounds} \u5C40\uFF0C${room.length ? room.length + " \u5B57" : "\u5B57\u6570\u968F\u9898\u76EE\u53D8\u5316"}\u3002\u5DF2\u7ED3\u7B97 ${room.completedRounds} \u5C40\uFF0C\u4E24\u4EBA\u4E00\u8D77\u7B54\u5BF9 ${room.successRounds} \u5C40\u3002`,
+        `\u623F\u95F4\u7801 ${room.code}\uFF0C${this.modeLabel(room)}\uFF0C\u7B2C ${room.roundNumber}/${room.totalRounds} \u9898\uFF0C${room.length ? room.length + " \u5B57" : "\u5B57\u6570\u968F\u9898\u76EE\u53D8\u5316"}\u3002\u5DF2\u7ED3\u7B97 ${room.completedRounds} \u9898\uFF0C\u4E24\u4EBA\u4E00\u8D77\u7B54\u5BF9 ${room.successRounds} \u9898\u3002`,
         `\u72B6\u6001\uFF1A${room.phase}\u3002`,
-        room.players.map((p) => `${p.seat === 0 ? "A" : "B"}\uFF1A${p.name}\uFF0C\u672C\u5C40\u7B2C ${p.readingOrder} \u68D2\uFF0C${p.left ? "\u5DF2\u9000\u51FA\u623F\u95F4" : !p.connected ? "\u65AD\u7EBF" : p.ready ? "\u5DF2\u51C6\u5907" : "\u672A\u51C6\u5907"}\uFF0C${p.submitted ? "\u5DF2\u63D0\u4EA4" : "\u672A\u63D0\u4EA4"}`).join("\uFF1B"),
+        room.players.map((p) => `${p.seat === 0 ? "A" : "B"}\uFF1A${p.name}\uFF0C\u672C\u9898\u7B2C ${p.readingOrder} \u68D2\uFF0C${p.left ? "\u5DF2\u9000\u51FA\u623F\u95F4" : !p.connected ? "\u65AD\u7EBF" : p.ready ? "\u5DF2\u51C6\u5907" : "\u672A\u51C6\u5907"}\uFF0C${p.submitted ? "\u5DF2\u63D0\u4EA4" : "\u672A\u63D0\u4EA4"}`).join("\uFF1B"),
         room.returnUntil ? "\u642D\u6863\u5DF2\u9000\u51FA\uFF0C\u7B49\u5F85\u8FD4\u56DE\u623F\u95F4\u3002" : "",
+        room.phase === "result" ? room.nextRoundAt ? `${this.secondsUntil(room.nextRoundAt)} \u79D2\u540E\u81EA\u52A8\u8FDB\u5165\u4E0B\u4E00\u9898\u3002` : "\u7B49\u5F85\u642D\u6863\u5728\u7EBF\u5E76\u8FD4\u56DE\uFF0C\u518D\u5F00\u59CB\u4E0B\u4E00\u9898\u5012\u8BA1\u65F6\u3002" : "",
+        room.roundId && room.myAnswer === null ? `\u4F60\u7684\u8349\u7A3F\uFF1A${this.draft || "\u5C1A\u672A\u586B\u5199"}\u3002` : "",
         room.roundId ? `\u7C73\u5B57\u683C ${room.length} \u4E2A\uFF0C\u672B\u5C3E\u95EE\u53F7\u3002\u5DF2\u8BFB ${room.revealedCount}/${room.length} \u5B57\uFF0C\u6307\u9488\uFF1A${room.revealedCount >= room.length ? "\u672B\u5C3E\u95EE\u53F7" : `\u7B2C ${room.revealedCount + 1} \u683C`}\u3002` : "",
         `\u4F60\u7684\u7247\u6BB5\uFF1A${room.myFragment || "\u5C1A\u672A\u63A5\u9898"}\u3002`,
-        room.phase === "complete" ? `\u4E03\u5C40\u6210\u7EE9\uFF1A${room.history.map((r) => `${r.roundNumber}\u5C40${r.success ? "\u5171\u540C\u7B54\u5BF9" : "\u672A\u5171\u540C\u7B54\u5BF9"}`).join("\uFF1B")}\u3002` : "",
+        room.phase === "complete" ? `\u4E03\u9898\u6210\u7EE9\uFF1A${room.history.map((r) => `${r.roundNumber}\u9898${r.success ? "\u5171\u540C\u7B54\u5BF9" : "\u672A\u5171\u540C\u7B54\u5BF9"}`).join("\uFF1B")}\u3002` : "",
         room.result ? `\u5B8C\u6574\u9898\u76EE\uFF1A${room.result.prompt} \u6807\u51C6\u7B54\u6848\uFF1A${room.result.answer}\u3002${room.result.success ? "\u4E24\u4EBA\u90FD\u7B54\u5BF9\u4E86\u3002" : "\u672C\u9898\u672A\u901A\u8FC7\u3002"}` : ""
-      ].filter(Boolean).join("\n") : snapshot.returnRoom ? `\u5DF2\u9000\u51FA\u623F\u95F4 ${snapshot.returnRoom.code}\uFF0C\u53EF\u5728\u5012\u8BA1\u65F6\u7ED3\u675F\u524D\u8FD4\u56DE\u623F\u95F4\u3002` : `\u4E24\u4EBA\u7B54\u9898\u63A5\u529B\u3002\u6BCF\u573A\u56FA\u5B9A ${snapshot.rules.totalRounds} \u5C40\uFF0C\u6BCF\u5C40\u8F6E\u6362\u68D2\u6B21\u3002\u521B\u5EFA\u623F\u95F4\uFF0C\u6216\u7528\u516D\u4F4D\u623F\u95F4\u7801\u52A0\u5165\u3002`);
+      ].filter(Boolean).join("\n") : snapshot.returnRoom ? `\u5DF2\u9000\u51FA\u623F\u95F4 ${snapshot.returnRoom.code}\uFF0C\u53EF\u5728\u5012\u8BA1\u65F6\u7ED3\u675F\u524D\u8FD4\u56DE\u623F\u95F4\u3002` : `\u4E24\u4EBA\u7B54\u9898\u63A5\u529B\u3002\u6BCF\u573A\u56FA\u5B9A ${snapshot.rules.totalRounds} \u9898\uFF0C\u6BCF\u9898\u8F6E\u6362\u68D2\u6B21\u3002\u521B\u5EFA\u623F\u95F4\uFF0C\u6216\u7528\u516D\u4F4D\u623F\u95F4\u7801\u52A0\u5165\u3002`);
     }
     notify(message) {
       this.status = message;
@@ -469,9 +495,21 @@
     async editAnswer() {
       const room = this.snapshot?.room;
       const roundId = room?.roundId;
-      const value = await this.platform.prompt("\u586B\u5199\u4F60\u7684\u7B54\u6848", this.draft, 100);
+      if (!roundId || !room.canAnswer) return;
+      this.answerPromptRoundId = roundId;
+      const value = await this.platform.prompt("\u586B\u5199\u4F60\u7684\u7B54\u6848\uFF08\u5230\u65F6\u81EA\u52A8\u63D0\u4EA4\uFF09", this.draft, 100, false, (value2) => this.updateDraft(roundId, value2));
+      if (this.answerPromptRoundId === roundId) this.answerPromptRoundId = null;
+      if (value !== void 0) this.updateDraft(roundId, value);
+    }
+    updateDraft(roundId, value) {
       const current2 = this.snapshot?.room;
-      if (current2 && value !== void 0 && roundId === current2.roundId && current2.myAnswer === null && (current2.canAnswer || current2.phase === "paused")) this.draft = value.trim();
+      if (!current2 || roundId !== current2.roundId || current2.myAnswer !== null || !current2.canAnswer && current2.phase !== "paused") return;
+      const answer = value.slice(0, 100).trim();
+      if (answer === this.draft) return;
+      this.draft = answer;
+      this.draftRevision++;
+      if (this.connection === "connected") this.action({ type: "draft", roundId, answer, revision: this.draftRevision });
+      this.describe();
     }
     rect(x, y, width, height, color, border, radius = 8) {
       const ctx2 = this.platform.context;
@@ -588,14 +626,14 @@
         void this.join();
       }, "secondary");
       this.button("tutorial", this.platform.get("tutorial.completed") === "true" ? "\u518D\u6B21\u5B66\u4E60\u73A9\u6CD5" : "\u5355\u4EBA\u5B66\u4E60\u73A9\u6CD5", 24, 592, 327, 44, () => this.startTutorial(), "bare");
-      this.text(`\u4E24\u4EBA \xB7 ${this.snapshot?.rules.totalRounds ?? DEFAULT_RULES.totalRounds} \u5C40 \xB7 \u6BCF\u5C40\u6362\u68D2`, 26, 624, 12, this.colors.muted);
+      this.text(`\u4E24\u4EBA \xB7 ${this.snapshot?.rules.totalRounds ?? DEFAULT_RULES.totalRounds} \u9898 \xB7 \u6BCF\u9898\u6362\u68D2`, 26, 624, 12, this.colors.muted);
     }
     modeLabel(room) {
       return this.snapshot?.contentMode === "sample" ? "" : room.difficulty === "easy" ? "\u7B80\u5355" : "\u56F0\u96BE";
     }
     roomHeader(room) {
       const mode = this.modeLabel(room);
-      this.text(`${mode ? mode + " / " : ""}\u7B2C ${room.roundNumber}/${room.totalRounds} \u5C40`, 24, 94, 13, this.colors.muted, 500);
+      this.text(`${mode ? mode + " / " : ""}\u7B2C ${room.roundNumber}/${room.totalRounds} \u9898`, 24, 94, 13, this.colors.muted, 500);
       this.text(room.length ? `${room.length} \u5B57` : "\u968F\u673A\u9898\u957F", 285, 94, 13, this.colors.muted, 500);
       const gap = room.totalRounds <= 20 ? 6 : 1;
       const width = (327 - (room.totalRounds - 1) * gap) / room.totalRounds;
@@ -603,7 +641,7 @@
     }
     lobby(room) {
       this.text(`\u623F\u95F4 ${room.code}`, 24, 102, 30, this.colors.ink, 600);
-      this.text("\u53EB\u4E0A\u642D\u6863\uFF0C\u51C6\u5907\u5C31\u5F00\u5C40\u3002", 24, 151, 14, this.colors.muted);
+      this.text("\u53EB\u4E0A\u642D\u6863\uFF0C\u51C6\u5907\u5C31\u5F00\u573A\u3002", 24, 151, 14, this.colors.muted);
       if (this.platform.invite) this.button("share", this.platform.source === "wechat" ? "\u5FAE\u4FE1\u9080\u8BF7\u597D\u53CB" : "\u5FAE\u4FE1\u5206\u4EAB", 24, 192, 156, 48, () => {
         void this.shareInvitation(room.code);
       }, "secondary");
@@ -617,7 +655,7 @@
         this.text(seat === 0 ? "A" : "B", 40, y + 19, 23, seat === 0 ? this.colors.blueInk : this.colors.greenInk, 700);
         const mine = p?.id === this.snapshot?.playerId;
         this.text(p ? this.short(p.name, 7) + (mine ? "\uFF08\u4F60\uFF09" : "") : "\u7B49\u5F85\u642D\u6863\u52A0\u5165", 84, y + 15, 15, this.colors.ink, 600, mine ? 160 : 240);
-        this.text(p ? `\u672C\u5C40\u7B2C ${p.readingOrder} \u68D2 \xB7 ${!p.connected ? "\u8FDE\u63A5\u4E2D\u65AD" : p.ready ? "\u5DF2\u51C6\u5907" : "\u672A\u51C6\u5907"}` : "\u70B9\u5F00\u9080\u8BF7\u94FE\u63A5\u5373\u53EF\u52A0\u5165", 84, y + 41, 11, this.colors.muted);
+        this.text(p ? `\u672C\u9898\u7B2C ${p.readingOrder} \u68D2 \xB7 ${!p.connected ? "\u8FDE\u63A5\u4E2D\u65AD" : p.ready ? "\u5DF2\u51C6\u5907" : "\u672A\u51C6\u5907"}` : "\u70B9\u5F00\u9080\u8BF7\u94FE\u63A5\u5373\u53EF\u52A0\u5165", 84, y + 41, 11, this.colors.muted);
         if (mine) this.button("nickname", "\u6539\u6635\u79F0", 268, y + 8, 75, 44, () => {
           void this.editName();
         }, "secondary");
@@ -627,7 +665,7 @@
       const settings = host && room.completedRounds === 0;
       const difficulty = settings && this.snapshot?.contentMode !== "sample";
       if (settings) {
-        this.text("\u5F00\u5C40\u6211\u73A9", 24, 439, 12, this.colors.muted);
+        this.text("\u5F00\u573A\u6211\u73A9", 24, 439, 12, this.colors.muted);
         for (const order of [1, 2]) this.button(
           `order-${order}`,
           `\u7B2C ${order} \u68D2${me.readingOrder === order ? " \xB7 \u5DF2\u9009" : ""}`,
@@ -648,10 +686,10 @@
           () => this.action({ type: "configure", difficulty: level }),
           room.difficulty === level ? "primary" : "secondary"
         );
-      } else this.text(room.completedRounds ? "\u6BCF\u5C40\u8F6E\u6362\u68D2\u6B21\uFF0C\u51C6\u5907\u540E\u7EE7\u7EED\u3002" : "\u623F\u4E3B\u8BBE\u7F6E\u5F00\u5C40\u68D2\u6B21\uFF0C\u4E4B\u540E\u6BCF\u5C40\u8F6E\u6362\u3002", 24, 461, 13, this.colors.muted);
+      } else this.text(room.completedRounds ? "\u6BCF\u9898\u8F6E\u6362\u68D2\u6B21\uFF0C\u51C6\u5907\u540E\u7EE7\u7EED\u3002" : "\u623F\u4E3B\u8BBE\u7F6E\u5F00\u573A\u68D2\u6B21\uFF0C\u4E4B\u540E\u6BCF\u9898\u8F6E\u6362\u3002", 24, 461, 13, this.colors.muted);
       const readyY = difficulty ? 579 : 545;
       this.button("ready", me.ready ? "\u53D6\u6D88\u51C6\u5907" : "\u6211\u51C6\u5907\u597D\u4E86", 24, readyY, 327, 56, () => this.action({ type: "ready", ready: !me.ready }), me.ready ? "secondary" : "primary");
-      if (host) this.button("start", `\u5F00\u59CB\u7B2C ${room.roundNumber} \u5C40`, 24, readyY + 70, 327, 56, () => this.action({ type: "start" }), "primary", room.players.length !== 2 || room.players.some((p) => !p.ready || !p.connected));
+      if (host) this.button("start", `\u5F00\u59CB\u7B2C ${room.roundNumber} \u9898`, 24, readyY + 70, 327, 56, () => this.action({ type: "start" }), "primary", room.players.length !== 2 || room.players.some((p) => !p.ready || !p.connected));
       else this.text("\u51C6\u5907\u540E\uFF0C\u7B49\u5F85\u623F\u4E3B\u5F00\u59CB\u3002", 24, readyY + 86, 14, this.colors.muted);
       if (room.notice) this.text(room.notice, 24, 715, 12, this.colors.red, 400, 327, 18);
       this.button("leave", "\u9000\u51FA\u623F\u95F4", 24, 748, 327, 44, () => this.action({ type: "leave" }), "bare");
@@ -718,7 +756,7 @@
       const activeMe = room.activeSeat === me.seat && room.phase === "reading";
       const title = paused ? "\u7B49\u642D\u6863\u56DE\u6765" : activeMe ? me.readingOrder === 1 ? "\u4F60\u6765\u51B3\u5B9A\u4F55\u65F6\u505C" : "\u63A5\u4F4F\u5269\u4E0B\u7684\u7EBF\u7D22" : room.phase === "answering" ? "\u73B0\u5728\uFF0C\u4E00\u8D77\u4F5C\u7B54" : me.readingOrder === 1 ? "\u5DF2\u4EA4\u7ED9\u642D\u6863" : "\u7B49\u5F85\u7B2C\u4E00\u68D2\u4EA4\u63A5";
       this.text(title, 24, 166, 27, this.colors.ink, 700);
-      this.text(`\u4F60\u672C\u5C40\u7B2C ${me.readingOrder} \u68D2`, 24, 215, 12, this.colors.muted);
+      this.text(`\u4F60\u672C\u9898\u7B2C ${me.readingOrder} \u68D2`, 24, 215, 12, this.colors.muted);
       this.rect(24, grid.panelTop, 327, grid.bottom - grid.panelTop, this.colors.gridPanel);
       this.drawQuestion(room, me.seat);
       if (paused) this.text(`\u7B49\u5F85\u91CD\u8FDE \xB7 ${Math.max(0, Math.ceil(((room.resumeUntil ?? 0) - Date.now() - this.serverOffset) / 1e3))} \u79D2`, 24, 466 + offset, 14, this.colors.red, 500);
@@ -735,11 +773,11 @@
           this.submitPending = true;
           this.action({ type: "answer", roundId: room.roundId, answer: this.draft });
         }, "primary", !this.draft || this.submitPending);
-        this.text("\u63D0\u4EA4\u540E\u4E0D\u80FD\u4FEE\u6539\uFF0C\u7B54\u6848\u5230\u7ED3\u7B97\u65F6\u624D\u516C\u5F00\u3002", 24, 667 + offset, 12, this.colors.muted);
+        this.text("\u63A5\u68D2\u540E\u5373\u53EF\u4F5C\u7B54\uFF1B\u5230\u65F6\u81EA\u52A8\u63D0\u4EA4\u5DF2\u586B\u5199\u7B54\u6848\u3002\n\u9501\u5B9A\u540E\u4E0D\u80FD\u4FEE\u6539\uFF0C\u7B54\u6848\u5230\u7ED3\u7B97\u65F6\u624D\u516C\u5F00\u3002", 24, 659 + offset, 12, this.colors.muted, 400, 327, 20);
       } else if (room.myAnswer !== null) {
         this.text(`\u4F60\u7684\u7B54\u6848\uFF1A${this.short(room.myAnswer, 23)}`, 24, 530 + offset, 22, this.colors.ink, 600, 327, 32);
         this.text("\u5DF2\u9501\u5B9A\u3002\u7B49\u5F85\u642D\u6863\u5B8C\u6210\u4F5C\u7B54\u3002", 24, 606 + offset, 14, this.colors.muted);
-      } else this.text(paused ? "\u91CD\u8FDE\u540E\u4F1A\u4ECE\u4E2D\u65AD\u4F4D\u7F6E\u7EE7\u7EED\u3002" : "\u8BFB\u5B8C\u81EA\u5DF1\u7684\u7247\u6BB5\u540E\uFF0C\u53EF\u4EE5\u586B\u5199\u7B54\u6848\u3002", 24, 540 + offset, 14, this.colors.muted);
+      } else this.text(paused ? "\u91CD\u8FDE\u540E\u4F1A\u4ECE\u4E2D\u65AD\u4F4D\u7F6E\u7EE7\u7EED\u3002" : "\u7B2C\u4E00\u68D2\u4EA4\u68D2\u540E\u3001\u7B2C\u4E8C\u68D2\u63A5\u68D2\u540E\u5373\u53EF\u4F5C\u7B54\u3002", 24, 540 + offset, 14, this.colors.muted);
       this.text(room.players.map((p) => `${p.seat === 0 ? "A" : "B"}\uFF1A${p.submitted ? "\u5DF2\u63D0\u4EA4" : "\u672A\u63D0\u4EA4"}`).join("        "), 24, 718 + offset, 12, this.colors.muted);
     }
     stopButton(room, offset) {
@@ -781,7 +819,7 @@
       this.text("\u5DF2\u9000\u51FA\u623F\u95F4", 24, 173, 30, this.colors.ink, 700);
       this.text(`\u623F\u95F4 ${code}`, 24, 240, 18, this.colors.muted);
       this.text(`\u8FD8\u53EF\u8FD4\u56DE ${this.secondsUntil(until)} \u79D2`, 24, 301, 24, this.colors.red, 600);
-      this.text("\u4F60\u7684\u642D\u6863\u6B63\u5728\u7B49\u5F85\u3002\n\u8FD4\u56DE\u540E\u53EF\u4EE5\u4ECE\u672C\u5C40\u7ED3\u7B97\u7EE7\u7EED\u3002", 24, 363, 15, this.colors.muted, 400, 327, 25);
+      this.text("\u4F60\u7684\u642D\u6863\u6B63\u5728\u7B49\u5F85\u3002\n\u8FD4\u56DE\u540E\u53EF\u4EE5\u4ECE\u672C\u9898\u7ED3\u7B97\u7EE7\u7EED\u3002", 24, 363, 15, this.colors.muted, 400, 327, 25);
       this.button("return", "\u8FD4\u56DE\u623F\u95F4", 24, 466, 327, 56, () => this.action({ type: "return" }), "primary", this.secondsUntil(until) === 0);
       this.text("\u5012\u8BA1\u65F6\u7ED3\u675F\u6216\u4E24\u4EBA\u5747\u9000\u51FA\uFF0C\u6E38\u620F\u505C\u6B62\u3002", 24, 553, 13, this.colors.muted);
     }
@@ -795,7 +833,7 @@
       }
       const result = room.result;
       this.text(result.success ? "\u4E24\u4E2A\u4EBA\uFF0C\u90FD\u7B54\u5BF9\u4E86\u3002" : "\u8FD9\u6B21\u8FD8\u5DEE\u4E00\u70B9\u3002", 24, 162, 26, this.colors.ink, 700);
-      this.text(`\u5DF2\u7ED3\u7B97 ${room.completedRounds}/${room.totalRounds} \u5C40 \xB7 \u4E00\u8D77\u7B54\u5BF9 ${room.successRounds} \u5C40${result.timedOut ? " \xB7 \u672C\u5C40\u8D85\u65F6" : ""}`, 24, 208, 12, this.colors.muted);
+      this.text(`\u5DF2\u7ED3\u7B97 ${room.completedRounds}/${room.totalRounds} \u9898 \xB7 \u4E00\u8D77\u7B54\u5BF9 ${room.successRounds} \u9898${result.timedOut ? " \xB7 \u672C\u9898\u8D85\u65F6" : ""}`, 24, 208, 12, this.colors.muted);
       this.text("\u5B8C\u6574\u9898\u76EE", 24, 248, 11, this.colors.muted);
       const promptEnd = this.text(result.prompt, 24, 274, 21, this.colors.ink, 600, 327, 30);
       const answerY = Math.max(359, promptEnd + 14);
@@ -808,14 +846,13 @@
         nextY += height + 16;
         this.rect(24, y, 327, height, i === 0 ? this.colors.blue : this.colors.green);
         this.text(`\u7B2C ${p.readingOrder} \u68D2 / ${this.short(p.name, 8)}`, 39, y + 12, 12, this.colors.ink, 600, 175);
-        this.text(`${this.short(p.answer ?? "\u672A\u4F5C\u7B54", 6)} \xB7 ${p.correct ? "\u6B63\u786E" : "\u9519\u8BEF"}`, 210, y + 12, 12, p.correct ? this.colors.greenInk : this.colors.red, 600, 126);
+        this.text(`${this.short(p.answer ?? "\u672A\u4F5C\u7B54", p.autoSubmitted ? 4 : 6)} \xB7 ${p.correct ? "\u6B63\u786E" : "\u9519\u8BEF"}${p.autoSubmitted ? "\xB7\u81EA\u52A8" : ""}`, 210, y + 12, 12, p.correct ? this.colors.greenInk : this.colors.red, 600, 126);
         this.text(p.fragment || "\u672A\u63A5\u6536\u5230\u6587\u5B57", 39, y + 40, 15, this.colors.ink, 400, 295, 22);
       });
       const controlsY = Math.max(655, nextY + 28);
       if (room.returnUntil) this.text(`\u7B49\u5F85\u642D\u6863\u8FD4\u56DE \xB7 ${this.secondsUntil(room.returnUntil)} \u79D2`, 24, controlsY - 26, 13, this.colors.red, 600);
-      const waiting = room.players.some((p) => p.left || !p.connected);
-      if (room.hostId === this.snapshot?.playerId) this.button("continue", `\u8FDB\u5165\u7B2C ${room.completedRounds + 1} \u5C40 \xB7 \u8F6E\u6362\u68D2\u6B21`, 24, controlsY, 327, 56, () => this.action({ type: "continue" }), "primary", waiting);
-      else this.text("\u7B49\u5F85\u623F\u4E3B\u7EE7\u7EED\u6311\u6218\u3002", 24, controlsY + 20, 14, this.colors.muted);
+      this.text(room.nextRoundAt ? `${this.secondsUntil(room.nextRoundAt)} \u79D2\u540E\u81EA\u52A8\u8FDB\u5165\u7B2C ${room.completedRounds + 1} \u9898` : "\u7B49\u5F85\u642D\u6863\u5728\u7EBF\u5E76\u8FD4\u56DE\uFF0C\u5012\u8BA1\u65F6\u6682\u505C\u3002", 24, controlsY + 5, 17, this.colors.ink, 600);
+      this.text("\u4E0B\u4E00\u9898\u8F6E\u6362\u68D2\u6B21\u3002", 24, controlsY + 35, 12, this.colors.muted);
     }
     newId() {
       return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -861,14 +898,19 @@
       if (t.phase === "first") this.button("tutorial-handoff", "\u4EA4\u68D2\u7ED9\u6A21\u62DF\u642D\u6863", 24, 490, 327, 56, () => t.handoff(Date.now()));
       else if (t.phase === "answer") {
         this.button("tutorial-input", t.draft ? `\u7B54\u6848\uFF1A${this.short(t.draft, 15)}` : "\u586B\u5199\u6559\u5B66\u7B54\u6848", 24, 490, 327, 56, () => {
-          void this.platform.prompt("\u586B\u5199\u6559\u5B66\u7B54\u6848", t.draft, 100).then((v) => {
-            if (this.tutorial === t && t.phase === "answer" && v !== void 0) t.draft = v.trim();
+          this.tutorialPrompt = t;
+          const changed = (v) => {
+            if (this.tutorial === t && t.phase === "answer") t.draft = v.slice(0, 100).trim();
+          };
+          void this.platform.prompt("\u586B\u5199\u6559\u5B66\u7B54\u6848\uFF08\u5230\u65F6\u81EA\u52A8\u63D0\u4EA4\uFF09", t.draft, 100, false, changed).then((v) => {
+            if (v !== void 0) changed(v);
+            if (this.tutorialPrompt === t) this.tutorialPrompt = null;
           });
         }, "secondary");
         this.button("tutorial-submit", "\u63D0\u4EA4\u5E76\u9501\u5B9A\u6559\u5B66\u7B54\u6848", 24, 560, 327, 56, () => t.submit(Date.now()), "primary", !t.draft);
       } else if (t.phase === "partner") {
         this.text(`\u4F60\u7684\u7B54\u6848\uFF1A${this.short(t.answer ?? "", 15)} \xB7 \u5DF2\u9501\u5B9A`, 24, 493, 20, this.colors.ink, 600);
-        this.text("\u6A21\u62DF\u642D\u6863\u6B63\u5728\u8BFB\u81EA\u5DF1\u7684\u7247\u6BB5\u3002\n\u7ED3\u7B97\u524D\uFF0C\u4F60\u770B\u4E0D\u5230\u5BF9\u65B9\u7247\u6BB5\u548C\u7B54\u6848\u3002", 24, 542, 15, this.colors.muted, 400, 327, 27);
+        this.text("\u7B2C\u4E8C\u68D2\u63A5\u68D2\u540E\u5C31\u80FD\u4F5C\u7B54\uFF0C\u65E0\u9700\u7B49\u8BFB\u5B8C\u3002\n\u7ED3\u7B97\u524D\uFF0C\u770B\u4E0D\u5230\u5BF9\u65B9\u7247\u6BB5\u548C\u7B54\u6848\u3002", 24, 542, 15, this.colors.muted, 400, 327, 27);
         this.text(`\u6A21\u62DF\u642D\u6863\u5DF2\u8BFB ${Math.max(0, t.count - 7)}/${t.units.length - 7} \u5B57`, 24, 612, 14, this.colors.greenInk, 600);
       } else {
         this.text(`\u5B8C\u6574\u9898\u76EE\uFF1A${TUTORIAL_PROMPT}
@@ -889,20 +931,20 @@
       }, "bare");
     }
     complete(room) {
-      this.text(`\u4E00\u8D77\u7B54\u5BF9 ${room.successRounds}/${room.totalRounds} \u5C40\u3002`, 24, 164, 28, this.colors.ink, 700);
+      this.text(`\u4E00\u8D77\u7B54\u5BF9 ${room.successRounds}/${room.totalRounds} \u9898\u3002`, 24, 164, 28, this.colors.ink, 700);
       const results = room.history;
       this.historyPage = Math.min(this.historyPage, Math.max(0, results.length - 1));
       const r = results[this.historyPage] ?? room.result;
       this.text(results.map((x) => `${x.roundNumber}${x.success ? "\u2713" : "\xD7"}`).join("   "), 24, 212, 18, this.colors.muted);
-      this.text(`\u7B2C ${r.roundNumber} \u5C40\u5B8C\u6574\u6210\u7EE9`, 24, 262, 14, this.colors.muted);
+      this.text(`\u7B2C ${r.roundNumber} \u9898\u5B8C\u6574\u6210\u7EE9`, 24, 262, 14, this.colors.muted);
       this.text(r.prompt, 24, 297, 20, this.colors.ink, 600, 327, 29);
       this.text(`\u6807\u51C6\u7B54\u6848\uFF1A${r.answer}`, 24, 402, 15, this.colors.ink, 600);
-      this.text(r.players.map((p) => `${this.short(p.name, 7)} / \u7B2C${p.readingOrder}\u68D2\uFF1A${this.short(p.answer ?? "\u672A\u7B54", 12)} \xB7 ${p.correct ? "\u6B63\u786E" : "\u9519\u8BEF"}
+      this.text(r.players.map((p) => `${this.short(p.name, 7)} / \u7B2C${p.readingOrder}\u68D2\uFF1A${this.short(p.answer ?? "\u672A\u7B54", 12)} \xB7 ${p.correct ? "\u6B63\u786E" : "\u9519\u8BEF"}${p.autoSubmitted ? " \xB7 \u81EA\u52A8\u63D0\u4EA4" : ""}
 \u7247\u6BB5\uFF1A${p.fragment}`).join("\n"), 24, 438, 13, this.colors.muted, 400, 327, 20);
-      this.button("history-prev", "\u4E0A\u4E00\u5C40\u6210\u7EE9", 24, 565, 155, 38, () => {
+      this.button("history-prev", "\u4E0A\u4E00\u9898\u6210\u7EE9", 24, 565, 155, 38, () => {
         this.historyPage--;
       }, "secondary", this.historyPage === 0);
-      this.button("history-next", "\u4E0B\u4E00\u5C40\u6210\u7EE9", 195, 565, 156, 38, () => {
+      this.button("history-next", "\u4E0B\u4E00\u9898\u6210\u7EE9", 195, 565, 156, 38, () => {
         this.historyPage++;
       }, "secondary", this.historyPage >= results.length - 1);
       const me = room.players.find((p) => p.id === this.snapshot?.playerId);
@@ -1040,7 +1082,9 @@
       }
     });
   }
-  function promptInput(title, value, maxLength, numeric = false) {
+  var cancelPrompt;
+  function promptInput(title, value, maxLength, numeric = false, onChange) {
+    cancelPrompt?.();
     return new Promise((resolve) => {
       const dialog = document.querySelector("#input-dialog");
       const label = document.querySelector("#input-label");
@@ -1052,7 +1096,13 @@
       input.maxLength = maxLength;
       input.inputMode = numeric ? "numeric" : "text";
       input.setAttribute("aria-label", title);
+      let finished = false;
+      const changed = () => onChange?.(input.value);
       const done = (result) => {
+        if (finished) return;
+        finished = true;
+        cancelPrompt = void 0;
+        input.removeEventListener("input", changed);
         form.removeEventListener("submit", submit);
         cancel.removeEventListener("click", dismiss);
         dialog.removeEventListener("cancel", dismiss);
@@ -1067,6 +1117,8 @@
         event.preventDefault();
         done(void 0);
       };
+      cancelPrompt = () => done(void 0);
+      input.addEventListener("input", changed);
       form.addEventListener("submit", submit);
       cancel.addEventListener("click", dismiss);
       dialog.addEventListener("cancel", dismiss);
@@ -1161,6 +1213,9 @@
       } };
     },
     prompt: promptInput,
+    cancelPrompt() {
+      cancelPrompt?.();
+    },
     invite(code) {
       if (sharing) return Promise.resolve("cancelled");
       sharing = true;
