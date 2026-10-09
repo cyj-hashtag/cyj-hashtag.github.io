@@ -194,11 +194,89 @@
     }
   };
 
+  // src/client/audio.ts
+  var MUSIC_PATH = "audio/jazz-brunch.mp3";
+  var SOUND_PATHS = {
+    click: "audio/click.wav",
+    stop: "audio/stop.wav",
+    lock: "audio/lock.wav",
+    start: "audio/start.wav",
+    success: "audio/success.wav",
+    failure: "audio/failure.wav"
+  };
+  var MUSIC_CREDIT = '"Jazz Brunch" Kevin MacLeod (incompetech.com)\nLicensed under Creative Commons: By Attribution 4.0 License\nhttps://creativecommons.org/licenses/by/4.0/\n\u6E38\u620F\u526F\u672C\u91CD\u65B0\u7F16\u7801\u4E3A 64 kbps\uFF1B\u66F2\u76EE\u5B8C\u6574\uFF0C\u672A\u526A\u8F91\u3002';
+  function audioPreferences(saved) {
+    try {
+      const value = JSON.parse(saved ?? "null");
+      if (value && typeof value === "object") return {
+        music: "music" in value && typeof value.music === "boolean" ? value.music : true,
+        effects: "effects" in value && typeof value.effects === "boolean" ? value.effects : true
+      };
+    } catch {
+    }
+    return { music: true, effects: true };
+  }
+  var GameAudio = class {
+    constructor(backend, saved, save, notify) {
+      __publicField(this, "backend", backend);
+      __publicField(this, "save", save);
+      __publicField(this, "notify", notify);
+      __publicField(this, "preferences");
+      __publicField(this, "unlocked", false);
+      __publicField(this, "visible", true);
+      __publicField(this, "interrupted", false);
+      this.preferences = audioPreferences(saved);
+      backend?.onError?.(() => this.notify("\u58F0\u97F3\u6682\u65F6\u65E0\u6CD5\u64AD\u653E\uFF0C\u8BF7\u5C1D\u8BD5\u5173\u95ED\u540E\u91CD\u65B0\u5F00\u542F\u3002"));
+    }
+    unlock() {
+      this.unlocked = true;
+      this.syncMusic();
+    }
+    setMusic(enabled) {
+      this.preferences.music = enabled;
+      this.syncMusic();
+      this.persist();
+    }
+    setEffects(enabled) {
+      this.preferences.effects = enabled;
+      if (!enabled) this.backend?.stopEffects();
+      this.persist();
+    }
+    setVisible(visible) {
+      this.visible = visible;
+      this.syncMusic();
+      if (!visible) this.backend?.stopEffects();
+    }
+    setInterrupted(interrupted) {
+      this.interrupted = interrupted;
+      this.syncMusic();
+      if (interrupted) this.backend?.stopEffects();
+    }
+    effect(sound) {
+      if (this.unlocked && this.visible && !this.interrupted && this.preferences.effects) this.backend?.playEffect(sound);
+    }
+    syncMusic() {
+      if (this.unlocked && this.visible && !this.interrupted && this.preferences.music) this.backend?.resumeMusic();
+      else this.backend?.pauseMusic();
+    }
+    persist() {
+      try {
+        this.save(JSON.stringify(this.preferences));
+      } catch {
+        this.notify("\u58F0\u97F3\u5DF2\u5207\u6362\uFF0C\u6682\u65F6\u65E0\u6CD5\u4FDD\u5B58\u504F\u597D\u3002");
+      }
+    }
+  };
+
   // src/client/app.ts
   var F = '"PingFang SC", "Microsoft YaHei", system-ui, sans-serif';
   var GameApp = class {
     constructor(platform2) {
       __publicField(this, "platform", platform2);
+      __publicField(this, "audio");
+      __publicField(this, "audioSettingsOpen", false);
+      __publicField(this, "wordbankSelection", null);
+      __publicField(this, "soundedResults", /* @__PURE__ */ new Set());
       __publicField(this, "colorMode", "dark");
       __publicField(this, "colors", THEMES.dark);
       __publicField(this, "snapshot", null);
@@ -261,6 +339,8 @@
         }
         const info = this.statusUntil > Date.now() ? this.status : this.takenOver ? "\u6E38\u620F\u5DF2\u5728\u53E6\u4E00\u9875\u9762\u6253\u5F00\uFF0C\u8BF7\u5173\u95ED\u5F53\u524D\u9875\u9762\u3002" : this.connection !== "connected" ? this.connection === "connecting" ? "\u6B63\u5728\u8FDE\u63A5\u623F\u95F4\u670D\u52A1\u5668\u2026" : "\u8FDE\u63A5\u4E2D\u65AD\uFF0C\u6B63\u5728\u91CD\u8FDE\u2026" : "";
         this.themeToggle();
+        if (room && this.wordbankSelection) this.drawWordbanks(room);
+        this.audioSettings();
         if (info) {
           this.rect(16, 5, 343, 29, this.colors.toast, void 0, 4);
           this.text(info, 25, 12, 11, this.colors.onToast, 500, 325, 15);
@@ -268,6 +348,14 @@
         this.platform.syncButtons(this.buttons);
         this.platform.frame(this.paint);
       });
+      let savedAudio = null;
+      try {
+        savedAudio = platform2.get("audio");
+      } catch {
+      }
+      this.audio = new GameAudio(platform2.audio, savedAudio, (value) => platform2.set("audio", value), (message) => this.notify(message));
+      platform2.onAudioVisibility?.((visible) => this.audio.setVisible(visible));
+      platform2.onAudioInterruption?.((interrupted) => this.audio.setInterrupted(interrupted));
       this.colorMode = platform2.get("theme") === "light" ? "light" : "dark";
       this.colors = THEMES[this.colorMode];
       platform2.applyTheme?.(this.colorMode);
@@ -363,6 +451,18 @@
     receive(message) {
       if ("serverNow" in message) this.serverOffset = message.serverNow - Date.now();
       if (message.type === "snapshot") {
+        const previous = this.snapshot?.room;
+        const current2 = message.room;
+        if (this.wordbankSelection && (current2?.roomId !== this.wordbankSelection.roomId || !["lobby", "complete"].includes(current2.phase))) this.wordbankSelection = null;
+        if (this.wordbankSelection && current2?.hostId !== message.playerId) this.wordbankSelection.ids = [...current2?.wordbankIds ?? []];
+        if (current2?.result && ["result", "complete"].includes(current2.phase)) {
+          const id = current2.result.roundId;
+          if (!this.soundedResults.has(id)) {
+            this.rememberResult(id);
+            if (previous?.roundId === id && ["reading", "answering", "paused"].includes(previous.phase)) this.audio.effect(current2.result.success ? "success" : "failure");
+          }
+        }
+        if (current2?.phase === "reading" && current2.roundId !== previous?.roundId && previous && ["lobby", "result", "complete"].includes(previous.phase)) this.audio.effect("start");
         const changedRound = message.room?.roundId !== this.snapshot?.room?.roundId;
         const revision = message.room?.myDraftRevision ?? 0;
         if (changedRound || revision >= this.draftRevision) {
@@ -424,14 +524,16 @@
       this.platform.describe?.(room ? [
         `\u623F\u95F4\u7801 ${room.code}\uFF0C${this.modeLabel(room)}\uFF0C\u7B2C ${room.roundNumber}/${room.totalRounds} \u9898\uFF0C${room.length ? room.length + " \u5B57" : "\u5B57\u6570\u968F\u9898\u76EE\u53D8\u5316"}\u3002\u5DF2\u7ED3\u7B97 ${room.completedRounds} \u9898\uFF0C\u4E24\u4EBA\u4E00\u8D77\u7B54\u5BF9 ${room.successRounds} \u9898\u3002`,
         `\u72B6\u6001\uFF1A${room.phase}\u3002`,
+        room.wordbankIds ? `\u6240\u9009\u9898\u5E93\uFF1A${this.bankNames(room.wordbankIds)}\u3002\u5269\u4F59\u53EF\u7528\u65B0\u9898\u6982\u5FF5\uFF1A${room.availableConceptCount}\u3002` : "",
         room.players.map((p) => `${p.seat === 0 ? "A" : "B"}\uFF1A${p.name}\uFF0C\u672C\u9898\u7B2C ${p.readingOrder} \u68D2\uFF0C${p.left ? "\u5DF2\u9000\u51FA\u623F\u95F4" : !p.connected ? "\u65AD\u7EBF" : p.ready ? "\u5DF2\u51C6\u5907" : "\u672A\u51C6\u5907"}\uFF0C${p.submitted ? "\u5DF2\u63D0\u4EA4" : "\u672A\u63D0\u4EA4"}`).join("\uFF1B"),
         room.returnUntil ? "\u642D\u6863\u5DF2\u9000\u51FA\uFF0C\u7B49\u5F85\u8FD4\u56DE\u623F\u95F4\u3002" : "",
         room.phase === "result" ? room.nextRoundAt ? `${this.secondsUntil(room.nextRoundAt)} \u79D2\u540E\u81EA\u52A8\u8FDB\u5165\u4E0B\u4E00\u9898\u3002` : "\u7B49\u5F85\u642D\u6863\u5728\u7EBF\u5E76\u8FD4\u56DE\uFF0C\u518D\u5F00\u59CB\u4E0B\u4E00\u9898\u5012\u8BA1\u65F6\u3002" : "",
         room.roundId && room.myAnswer === null ? `\u4F60\u7684\u8349\u7A3F\uFF1A${this.draft || "\u5C1A\u672A\u586B\u5199"}\u3002` : "",
         room.roundId ? `\u7C73\u5B57\u683C ${room.length} \u4E2A\uFF0C\u672B\u5C3E\u95EE\u53F7\u3002\u5DF2\u8BFB ${room.revealedCount}/${room.length} \u5B57\uFF0C\u6307\u9488\uFF1A${room.revealedCount >= room.length ? "\u672B\u5C3E\u95EE\u53F7" : `\u7B2C ${room.revealedCount + 1} \u683C`}\u3002` : "",
         `\u4F60\u7684\u7247\u6BB5\uFF1A${room.myFragment || "\u5C1A\u672A\u63A5\u9898"}\u3002`,
+        room.sharedContext ? `\u53CC\u65B9\u5171\u540C\u80CC\u666F\uFF1A${room.sharedContext}\u3002` : "",
         room.phase === "complete" ? `\u4E03\u9898\u6210\u7EE9\uFF1A${room.history.map((r) => `${r.roundNumber}\u9898${r.success ? "\u5171\u540C\u7B54\u5BF9" : "\u672A\u5171\u540C\u7B54\u5BF9"}`).join("\uFF1B")}\u3002` : "",
-        room.result ? `\u5B8C\u6574\u9898\u76EE\uFF1A${room.result.prompt} \u6807\u51C6\u7B54\u6848\uFF1A${room.result.answer}\u3002${room.result.success ? "\u4E24\u4EBA\u90FD\u7B54\u5BF9\u4E86\u3002" : "\u672C\u9898\u672A\u901A\u8FC7\u3002"}` : ""
+        room.result ? `\u5B8C\u6574\u9898\u76EE\uFF1A${room.result.sharedContext ? room.result.sharedContext + "\uFF1A" : ""}${room.result.prompt} \u6807\u51C6\u7B54\u6848\uFF1A${room.result.answer}\u3002${room.result.success ? "\u4E24\u4EBA\u90FD\u7B54\u5BF9\u4E86\u3002" : "\u672C\u9898\u672A\u901A\u8FC7\u3002"}` : ""
       ].filter(Boolean).join("\n") : snapshot.returnRoom ? `\u5DF2\u9000\u51FA\u623F\u95F4 ${snapshot.returnRoom.code}\uFF0C\u53EF\u5728\u5012\u8BA1\u65F6\u7ED3\u675F\u524D\u8FD4\u56DE\u623F\u95F4\u3002` : `\u4E24\u4EBA\u7B54\u9898\u63A5\u529B\u3002\u6BCF\u573A\u56FA\u5B9A ${snapshot.rules.totalRounds} \u9898\uFF0C\u6BCF\u9898\u8F6E\u6362\u68D2\u6B21\u3002\u521B\u5EFA\u623F\u95F4\uFF0C\u6216\u7528\u516D\u4F4D\u623F\u95F4\u7801\u52A0\u5165\u3002`);
     }
     notify(message) {
@@ -555,21 +657,33 @@
       return lines;
     }
     button(id, label, x, y, width, height, press, style = "primary", disabled = false) {
-      const enabled = !disabled && (this.connection === "connected" || !!this.tutorial || id === "tutorial");
+      const enabled = !disabled && (this.connection === "connected" || !!this.tutorial || id === "tutorial" || id.startsWith("audio-"));
       const bg = style === "primary" ? enabled ? this.colors.ink : this.colors.disabled : style === "secondary" ? this.colors.paper : this.colors.bg;
       this.rect(x, y, width, height, bg, style === "secondary" ? this.colors.line : void 0, 6);
       const ctx2 = this.platform.context;
       ctx2.font = `600 15px ${F}`;
       const color = style === "primary" ? enabled ? this.colors.onPrimary : this.colors.onDisabled : enabled ? this.colors.ink : this.colors.muted;
       this.text(label, x + Math.max(12, (width - ctx2.measureText(label).width) / 2), y + (height - 18) / 2, 15, color, 600, width - 20, 18);
-      this.buttons.push({ id, label, x, y, width, height, disabled: !enabled, press });
+      const sound = id === "submit" || id === "tutorial-submit" ? "lock" : id === "tutorial-handoff" ? "stop" : "click";
+      this.buttons.push({ id, label, x, y, width, height, disabled: !enabled, press: this.audible(press, sound) });
+    }
+    audible(press, sound = "click") {
+      return () => {
+        this.audio.unlock();
+        this.audio.effect(sound);
+        press();
+      };
+    }
+    rememberResult(id) {
+      this.soundedResults.add(id);
+      if (this.soundedResults.size > 64) this.soundedResults.delete(this.soundedResults.values().next().value);
     }
     top() {
-      this.text("\u63A5\u8C1C", 84, 48, 12, this.colors.muted, 600);
+      this.text("\u63A5\u8C1C", 144, 48, 12, this.colors.muted, 600);
       const ctx2 = this.platform.context;
       ctx2.strokeStyle = this.colors.line;
       ctx2.beginPath();
-      ctx2.moveTo(84, 68);
+      ctx2.moveTo(144, 68);
       ctx2.lineTo(351, 68);
       ctx2.stroke();
     }
@@ -607,7 +721,7 @@
         ctx2.fill();
       }
       ctx2.restore();
-      this.buttons.push({ id: "theme", label: this.colorMode === "dark" ? "\u5207\u6362\u4E3A\u6D45\u8272\u6A21\u5F0F" : "\u5207\u6362\u4E3A\u6DF1\u8272\u6A21\u5F0F", x: 24, y: 36, width: 44, height: 44, shape: "circle", press: () => {
+      this.buttons.push({ id: "theme", label: this.colorMode === "dark" ? "\u5207\u6362\u4E3A\u6D45\u8272\u6A21\u5F0F" : "\u5207\u6362\u4E3A\u6DF1\u8272\u6A21\u5F0F", x: 24, y: 36, width: 44, height: 44, shape: "circle", press: this.audible(() => {
         this.colorMode = this.colorMode === "dark" ? "light" : "dark";
         this.colors = THEMES[this.colorMode];
         this.platform.applyTheme?.(this.colorMode);
@@ -616,7 +730,39 @@
         } catch {
           this.notify("\u989C\u8272\u5DF2\u5207\u6362\uFF0C\u6682\u65F6\u65E0\u6CD5\u4FDD\u5B58\u504F\u597D\u3002");
         }
-      } });
+      }) });
+    }
+    audioSettings() {
+      this.button("audio-open", "\u97F3", 84, 36, 44, 44, () => {
+        this.audioSettingsOpen = true;
+      }, "secondary");
+      this.buttons[this.buttons.length - 1].label = "\u58F0\u97F3\u8BBE\u7F6E";
+      if (!this.audioSettingsOpen) return;
+      this.buttons = [];
+      this.rect(0, 0, 375, 812, this.colors.bg);
+      this.top();
+      this.text("\u58F0\u97F3\u8BBE\u7F6E", 24, 120, 30, this.colors.ink, 700);
+      this.text("\u53EA\u5F71\u54CD\u4F60\u7684\u8BBE\u5907\uFF0C\u97F3\u4E50\u4E0E\u97F3\u6548\u5206\u522B\u63A7\u5236\u3002", 24, 168, 13, this.colors.muted);
+      const { music, effects } = this.audio.preferences;
+      this.button("audio-music", `\u80CC\u666F\u97F3\u4E50 \xB7 ${music ? "\u5F00\u542F" : "\u5173\u95ED"}`, 24, 215, 327, 56, () => this.audio.setMusic(!this.audio.preferences.music), music ? "primary" : "secondary");
+      this.buttons[this.buttons.length - 1].toggled = music;
+      this.button("audio-effects", `\u64CD\u4F5C\u97F3\u6548 \xB7 ${effects ? "\u5F00\u542F" : "\u5173\u95ED"}`, 24, 293, 327, 56, () => {
+        this.audio.setEffects(!this.audio.preferences.effects);
+        if (this.audio.preferences.effects) this.audio.effect("click");
+      }, effects ? "primary" : "secondary");
+      this.buttons[this.buttons.length - 1].toggled = effects;
+      this.text("\u6BD4\u8D5B\u4E0E\u6559\u5B66\u8BA1\u65F6\u4F1A\u7EE7\u7EED\u3002\n\u5207\u5230\u540E\u53F0\u65F6\u6682\u505C\u58F0\u97F3\u3002", 24, 370, 13, this.colors.muted, 400, 327, 22);
+      this.text("\u97F3\u4E50\u7F72\u540D", 24, 447, 14, this.colors.ink, 600);
+      this.text("\u201CJazz Brunch\u201D \u2014 Kevin MacLeod\nincompetech.com\nCreative Commons: By Attribution 4.0\nhttps://creativecommons.org/licenses/by/4.0/\n\u6E38\u620F\u526F\u672C\u538B\u7F29\u4E3A 64 kbps\uFF0C\u5B8C\u6574\u66F2\u76EE\u672A\u526A\u8F91\u3002", 24, 478, 12, this.colors.muted, 400, 327, 21);
+      this.button("audio-credit", "\u590D\u5236\u97F3\u4E50\u7F72\u540D\u4E0E\u8BB8\u53EF\u94FE\u63A5", 24, 610, 327, 44, () => {
+        void this.platform.copy(MUSIC_CREDIT).then((copied) => {
+          if (copied) this.notify("\u97F3\u4E50\u7F72\u540D\u5DF2\u590D\u5236\u3002");
+        }).catch(() => this.notify("\u6682\u65F6\u65E0\u6CD5\u590D\u5236\uFF0C\u8BF7\u67E5\u770B\u4E0A\u65B9\u7F72\u540D\u3002"));
+      }, "secondary");
+      this.button("audio-close", "\u8FD4\u56DE\u6E38\u620F", 24, 694, 327, 56, () => {
+        this.audioSettingsOpen = false;
+      });
+      this.platform.describe?.(`\u58F0\u97F3\u8BBE\u7F6E\u3002\u80CC\u666F\u97F3\u4E50${music ? "\u5F00\u542F" : "\u5173\u95ED"}\uFF0C\u64CD\u4F5C\u97F3\u6548${effects ? "\u5F00\u542F" : "\u5173\u95ED"}\u3002\u6BD4\u8D5B\u4E0E\u6559\u5B66\u8BA1\u65F6\u7EE7\u7EED\u3002${MUSIC_CREDIT}`);
     }
     home() {
       this.text("\u63A5\u8C1C", 24, 220, 52, this.colors.ink, 700, 327, 66);
@@ -662,7 +808,7 @@
       }
       const me = room.players.find((p) => p.id === this.snapshot?.playerId);
       const host = room.hostId === this.snapshot?.playerId;
-      const settings = host && room.completedRounds === 0;
+      const settings = host && room.completedRounds === 0 && !room.matchId;
       const difficulty = settings && this.snapshot?.contentMode !== "sample";
       if (settings) {
         this.text("\u5F00\u573A\u6211\u73A9", 24, 439, 12, this.colors.muted);
@@ -687,12 +833,58 @@
           room.difficulty === level ? "primary" : "secondary"
         );
       } else this.text(room.completedRounds ? "\u6BCF\u9898\u8F6E\u6362\u68D2\u6B21\uFF0C\u51C6\u5907\u540E\u7EE7\u7EED\u3002" : "\u623F\u4E3B\u8BBE\u7F6E\u5F00\u573A\u68D2\u6B21\uFF0C\u4E4B\u540E\u6BCF\u9898\u8F6E\u6362\u3002", 24, 461, 13, this.colors.muted);
-      const readyY = difficulty ? 579 : 545;
+      const hasBanks = !!room.wordbankIds?.length;
+      if (hasBanks) this.bankSummary(room, 521);
+      const readyY = difficulty ? 579 : hasBanks ? 580 : 545;
       this.button("ready", me.ready ? "\u53D6\u6D88\u51C6\u5907" : "\u6211\u51C6\u5907\u597D\u4E86", 24, readyY, 327, 56, () => this.action({ type: "ready", ready: !me.ready }), me.ready ? "secondary" : "primary");
       if (host) this.button("start", `\u5F00\u59CB\u7B2C ${room.roundNumber} \u9898`, 24, readyY + 70, 327, 56, () => this.action({ type: "start" }), "primary", room.players.length !== 2 || room.players.some((p) => !p.ready || !p.connected));
       else this.text("\u51C6\u5907\u540E\uFF0C\u7B49\u5F85\u623F\u4E3B\u5F00\u59CB\u3002", 24, readyY + 86, 14, this.colors.muted);
       if (room.notice) this.text(room.notice, 24, 715, 12, this.colors.red, 400, 327, 18);
       this.button("leave", "\u9000\u51FA\u623F\u95F4", 24, 748, 327, 44, () => this.action({ type: "leave" }), "bare");
+    }
+    bankNames(ids) {
+      return (this.snapshot?.wordbanks ?? []).filter((bank) => ids.includes(bank.id)).map((bank) => bank.name).join("\u3001");
+    }
+    canSelectBanks(room) {
+      return room.hostId === this.snapshot?.playerId && (room.phase === "lobby" && !room.matchId || room.phase === "complete" && room.players.every((p) => !p.left));
+    }
+    bankSummary(room, y) {
+      const editable = this.canSelectBanks(room);
+      this.button("wordbanks-open", `${editable ? "\u52FE\u9009\u9898\u5E93" : "\u67E5\u770B\u9898\u5E93"} \xB7 ${room.wordbankIds?.length ?? 0}\u7C7B`, 24, y, 327, 44, () => {
+        this.wordbankSelection = { roomId: room.roomId, ids: [...room.wordbankIds] };
+      }, "secondary");
+    }
+    drawWordbanks(room) {
+      const selection = this.wordbankSelection;
+      const banks = this.snapshot?.wordbanks ?? [];
+      const editable = this.canSelectBanks(room);
+      this.buttons = [];
+      this.rect(0, 84, 375, 728, this.colors.bg);
+      this.text(editable ? "\u52FE\u9009\u9898\u5E93" : "\u672C\u573A\u9898\u5E93", 24, 110, 30, this.colors.ink, 700);
+      this.text(editable ? "\u53EF\u591A\u9009\uFF0C\u9898\u76EE\u4ECE\u6240\u9009\u9898\u5E93\u6DF7\u5408\u62BD\u53D6\u3002" : "\u7531\u623F\u4E3B\u9009\u62E9\uFF0C\u5F00\u573A\u540E\u672C\u573A\u56FA\u5B9A\u3002", 24, 163, 14, this.colors.muted);
+      for (let i = 0; i < banks.length; i++) {
+        const bank = banks[i], checked = selection.ids.includes(bank.id);
+        const x = 24 + i % 2 * 171, y = 210 + Math.floor(i / 2) * 72;
+        this.button(`wordbank-${bank.id}`, `${checked ? "\u2713" : "\u25A1"} ${bank.name}`, x, y, 156, 52, () => {
+          if (checked) selection.ids = selection.ids.filter((id) => id !== bank.id);
+          else selection.ids.push(bank.id);
+        }, checked ? "primary" : "secondary", !editable);
+        const button = this.buttons.at(-1);
+        button.role = "checkbox";
+        button.toggled = checked;
+      }
+      if (editable) this.button("wordbanks-all", selection.ids.length === banks.length ? "\u53D6\u6D88\u5168\u9009" : "\u5168\u90E8\u52FE\u9009", 24, 514, 327, 40, () => {
+        selection.ids = selection.ids.length === banks.length ? [] : banks.map((bank) => bank.id);
+      }, "secondary");
+      this.text(selection.ids.length ? `\u5DF2\u9009 ${selection.ids.length} \u7C7B\uFF1A${this.bankNames(selection.ids)}` : "\u8BF7\u81F3\u5C11\u52FE\u9009\u4E00\u4E2A\u9898\u5E93\u3002", 24, 584, 14, selection.ids.length ? this.colors.muted : this.colors.red, 400, 327, 24);
+      this.text(editable ? "\u4FDD\u5B58\u66F4\u6539\u540E\uFF0C\u53CC\u65B9\u9700\u8981\u91CD\u65B0\u51C6\u5907\u3002" : "\u642D\u6863\u4E0E\u623F\u4E3B\u4F7F\u7528\u540C\u4E00\u7EC4\u9898\u5E93\u3002", 24, 642, 13, this.colors.muted);
+      if (editable) this.button("wordbanks-save", "\u4FDD\u5B58\u9898\u5E93\u9009\u62E9", 24, 680, 327, 52, () => {
+        this.action({ type: "configure", wordbankIds: banks.filter((bank) => selection.ids.includes(bank.id)).map((bank) => bank.id) });
+        this.wordbankSelection = null;
+      }, "primary", !selection.ids.length);
+      this.button("wordbanks-close", editable ? "\u53D6\u6D88" : "\u8FD4\u56DE", 24, 748, 327, 44, () => {
+        this.wordbankSelection = null;
+      }, "bare");
     }
     drawQuestion(room, seat) {
       const ctx2 = this.platform.context;
@@ -756,7 +948,7 @@
       const activeMe = room.activeSeat === me.seat && room.phase === "reading";
       const title = paused ? "\u7B49\u642D\u6863\u56DE\u6765" : activeMe ? me.readingOrder === 1 ? "\u4F60\u6765\u51B3\u5B9A\u4F55\u65F6\u505C" : "\u63A5\u4F4F\u5269\u4E0B\u7684\u7EBF\u7D22" : room.phase === "answering" ? "\u73B0\u5728\uFF0C\u4E00\u8D77\u4F5C\u7B54" : me.readingOrder === 1 ? "\u5DF2\u4EA4\u7ED9\u642D\u6863" : "\u7B49\u5F85\u7B2C\u4E00\u68D2\u4EA4\u63A5";
       this.text(title, 24, 166, 27, this.colors.ink, 700);
-      this.text(`\u4F60\u672C\u9898\u7B2C ${me.readingOrder} \u68D2`, 24, 215, 12, this.colors.muted);
+      this.text(`\u4F60\u672C\u9898\u7B2C ${me.readingOrder} \u68D2${room.sharedContext ? ` \xB7 ${room.sharedContext}` : ""}`, 24, 215, 12, this.colors.muted, 500, 327, 18);
       this.rect(24, grid.panelTop, 327, grid.bottom - grid.panelTop, this.colors.gridPanel);
       this.drawQuestion(room, me.seat);
       if (paused) this.text(`\u7B49\u5F85\u91CD\u8FDE \xB7 ${Math.max(0, Math.ceil(((room.resumeUntil ?? 0) - Date.now() - this.serverOffset) / 1e3))} \u79D2`, 24, 466 + offset, 14, this.colors.red, 500);
@@ -807,12 +999,12 @@
         setPressed: (value) => {
           this.stopPressed = value;
         },
-        press: () => {
+        press: this.audible(() => {
           this.stopPressed = false;
           this.platform.feedback?.();
           this.handoffPending = true;
           this.action({ type: "handoff", roundId: room.roundId, lastIndex: room.myLastIndex });
-        }
+        }, "stop")
       });
     }
     returning(code, until) {
@@ -835,7 +1027,7 @@
       this.text(result.success ? "\u4E24\u4E2A\u4EBA\uFF0C\u90FD\u7B54\u5BF9\u4E86\u3002" : "\u8FD9\u6B21\u8FD8\u5DEE\u4E00\u70B9\u3002", 24, 162, 26, this.colors.ink, 700);
       this.text(`\u5DF2\u7ED3\u7B97 ${room.completedRounds}/${room.totalRounds} \u9898 \xB7 \u4E00\u8D77\u7B54\u5BF9 ${room.successRounds} \u9898${result.timedOut ? " \xB7 \u672C\u9898\u8D85\u65F6" : ""}`, 24, 208, 12, this.colors.muted);
       this.text("\u5B8C\u6574\u9898\u76EE", 24, 248, 11, this.colors.muted);
-      const promptEnd = this.text(result.prompt, 24, 274, 21, this.colors.ink, 600, 327, 30);
+      const promptEnd = this.text(`${result.sharedContext ? result.sharedContext + "\uFF1A" : ""}${result.prompt}`, 24, 274, 21, this.colors.ink, 600, 327, 30);
       const answerY = Math.max(359, promptEnd + 14);
       this.text(`\u6807\u51C6\u7B54\u6848\uFF1A${result.answer}`, 24, answerY, 15, this.colors.ink, 600);
       let nextY = answerY + 42;
@@ -885,9 +1077,14 @@
       this.platform.describe?.(`\u6559\u5B66\u72B6\u6001\uFF1A${t.phase}\u3002\u4F60\uFF1A\u7B2C\u4E00\u68D2\uFF1B\u6A21\u62DF\u642D\u6863\uFF1A\u7B2C\u4E8C\u68D2\u3002\u5DF2\u8BFB ${t.count}/${t.units.length} \u5B57\u3002\u4F60\u7684\u7247\u6BB5\uFF1A${t.fragment}\u3002${t.notice}\u3002${t.answer !== null ? "\u4F60\u7684\u7B54\u6848\u5DF2\u9501\u5B9A\u3002" : ""}${t.phase === "result" ? `\u5B8C\u6574\u9898\u76EE\uFF1A${TUTORIAL_PROMPT} \u6807\u51C6\u7B54\u6848\uFF1A\u9A86\u9A7C\u3002\u642D\u6863\u7247\u6BB5\uFF1A${t.partnerFragment}\u3002\u6A21\u62DF\u642D\u6863\u7B54\u6848\uFF1A\u9A86\u9A7C\u3002` : "\u7ED3\u7B97\u524D\u770B\u4E0D\u5230\u5BF9\u65B9\u7247\u6BB5\u548C\u7B54\u6848\u3002"}`);
     }
     drawTutorial() {
-      const t = this.tutorial;
+      const t = this.tutorial, previous = t.phase;
       t.tick(Date.now());
       this.describeTutorial();
+      if (previous === "answer" && t.phase === "partner") this.audio.effect("lock");
+      if (t.phase === "result" && !this.soundedResults.has(t.id)) {
+        this.rememberResult(t.id);
+        this.audio.effect(t.success ? "success" : "failure");
+      }
       this.top();
       this.text("\u5355\u4EBA\u4EA4\u4E92\u6559\u5B66", 24, 100, 30, this.colors.ink, 700);
       this.text("\u4F60 / \u7B2C\u4E00\u68D2     \u6A21\u62DF\u642D\u6863 / \u7B2C\u4E8C\u68D2", 24, 151, 14, this.colors.muted);
@@ -937,16 +1134,20 @@
       const r = results[this.historyPage] ?? room.result;
       this.text(results.map((x) => `${x.roundNumber}${x.success ? "\u2713" : "\xD7"}`).join("   "), 24, 212, 18, this.colors.muted);
       this.text(`\u7B2C ${r.roundNumber} \u9898\u5B8C\u6574\u6210\u7EE9`, 24, 262, 14, this.colors.muted);
-      this.text(r.prompt, 24, 297, 20, this.colors.ink, 600, 327, 29);
+      this.text(`${r.sharedContext ? r.sharedContext + "\uFF1A" : ""}${r.prompt}`, 24, 297, 20, this.colors.ink, 600, 327, 29);
       this.text(`\u6807\u51C6\u7B54\u6848\uFF1A${r.answer}`, 24, 402, 15, this.colors.ink, 600);
       this.text(r.players.map((p) => `${this.short(p.name, 7)} / \u7B2C${p.readingOrder}\u68D2\uFF1A${this.short(p.answer ?? "\u672A\u7B54", 12)} \xB7 ${p.correct ? "\u6B63\u786E" : "\u9519\u8BEF"}${p.autoSubmitted ? " \xB7 \u81EA\u52A8\u63D0\u4EA4" : ""}
 \u7247\u6BB5\uFF1A${p.fragment}`).join("\n"), 24, 438, 13, this.colors.muted, 400, 327, 20);
-      this.button("history-prev", "\u4E0A\u4E00\u9898\u6210\u7EE9", 24, 565, 155, 38, () => {
+      const hasBanks = !!room.wordbankIds?.length;
+      this.button("history-prev", "\u4E0A\u4E00\u9898\u6210\u7EE9", 24, 565, hasBanks ? 105 : 155, 38, () => {
         this.historyPage--;
       }, "secondary", this.historyPage === 0);
-      this.button("history-next", "\u4E0B\u4E00\u9898\u6210\u7EE9", 195, 565, 156, 38, () => {
+      this.button("history-next", "\u4E0B\u4E00\u9898\u6210\u7EE9", hasBanks ? 135 : 195, 565, hasBanks ? 105 : 156, 38, () => {
         this.historyPage++;
       }, "secondary", this.historyPage >= results.length - 1);
+      if (hasBanks) this.button("wordbanks-open", this.canSelectBanks(room) ? "\u52FE\u9009\u9898\u5E93" : "\u67E5\u770B\u9898\u5E93", 246, 565, 105, 38, () => {
+        this.wordbankSelection = { roomId: room.roomId, ids: [...room.wordbankIds] };
+      }, "secondary");
       const me = room.players.find((p) => p.id === this.snapshot?.playerId);
       this.text(room.notice || room.players.map((p) => `${this.short(p.name, 6)}\uFF1A${p.left ? "\u5DF2\u9000\u51FA" : !p.connected ? "\u65AD\u7EBF" : p.ready ? "\u5DF2\u51C6\u5907" : "\u672A\u51C6\u5907"}`).join(" / "), 24, 616, 12, room.notice ? this.colors.red : this.colors.muted, 400, 327, 18);
       this.button("rematch", me.ready ? "\u53D6\u6D88\u51C6\u5907" : "\u51C6\u5907\u518D\u6765\u4E00\u573A", 24, 669, 327, 52, () => this.action({ type: "rematch", ready: !me.ready, matchId: room.matchId }), me.ready ? "secondary" : "primary", room.players.some((p) => p.left));
@@ -997,6 +1198,56 @@
     } catch {
       return guidance();
     }
+  }
+
+  // src/client/browser-audio.ts
+  function browserAudio() {
+    let music, effect;
+    let report;
+    const failed = /* @__PURE__ */ new Set();
+    const error = (source) => {
+      if (failed.has(source)) return;
+      failed.add(source);
+      console.warn("[\u63A5\u8C1C\u58F0\u97F3] playback-unavailable");
+      report?.();
+    };
+    const voice = (source, loop, volume) => {
+      const audio = new Audio(new URL("./" + source, location.href).href);
+      audio.loop = loop;
+      audio.volume = volume;
+      audio.preload = "auto";
+      audio.addEventListener("error", () => error(source));
+      return audio;
+    };
+    const play = (audio) => {
+      void audio.play().catch((reason) => {
+        if (reason instanceof DOMException && reason.name === "AbortError") return;
+        error(audio.src);
+      });
+    };
+    return {
+      onError(callback) {
+        report = callback;
+      },
+      resumeMusic() {
+        music ?? (music = voice(MUSIC_PATH, true, 0.22));
+        if (music.paused) play(music);
+      },
+      pauseMusic() {
+        music?.pause();
+      },
+      playEffect(sound) {
+        effect ?? (effect = voice(SOUND_PATHS[sound], false, 0.65));
+        effect.pause();
+        const source = new URL("./" + SOUND_PATHS[sound], location.href).href;
+        if (effect.src !== source) effect.src = source;
+        else effect.currentTime = 0;
+        play(effect);
+      },
+      stopEffects() {
+        effect?.pause();
+      }
+    };
   }
 
   // src/client/browser.ts
@@ -1130,6 +1381,11 @@
   var platform = {
     context: ctx,
     source: "browser",
+    audio: browserAudio(),
+    onAudioVisibility(callback) {
+      callback(!document.hidden);
+      document.addEventListener("visibilitychange", () => callback(!document.hidden));
+    },
     describe(text) {
       document.querySelector("#game-status").textContent = text;
     },
@@ -1145,7 +1401,7 @@
     },
     syncButtons(buttons) {
       current = new Map(buttons.map((button) => [button.id, button]));
-      const next = buttons.map((b) => `${b.id}:${b.label}:${b.disabled}:${b.shape ?? ""}`).join("|");
+      const next = buttons.map((b) => `${b.id}:${b.label}:${b.disabled}:${b.toggled}:${b.shape ?? ""}`).join("|");
       if (next === signatures) return;
       signatures = next;
       controls.replaceChildren();
@@ -1154,6 +1410,11 @@
         button.textContent = b.label;
         button.setAttribute("aria-label", b.label);
         button.disabled = !!b.disabled;
+        if (b.toggled !== void 0) button.setAttribute("aria-pressed", String(b.toggled));
+        if (b.role === "checkbox") {
+          button.setAttribute("role", "checkbox");
+          button.setAttribute("aria-checked", String(b.toggled));
+        }
         button.style.left = `${b.x / 375 * 100}%`;
         button.style.top = `${b.y / 812 * 100}%`;
         button.style.width = `${b.width / 375 * 100}%`;

@@ -1,0 +1,12 @@
+"Jazz Brunch" Kevin MacLeod (incompetech.com)
+Licensed under Creative Commons: By Attribution 4.0 License
+http://creativecommons.org/licenses/by/4.0/
+
+Source: user-provided Jazz Brunch.mp3, original recording by Kevin MacLeod.
+Game copy: re-encoded to 64 kbps, 44.1 kHz stereo MP3. Full track; no cuts.
+Original source file is unchanged.
+
+click.wav, stop.wav, lock.wav, start.wav, success.wav, failure.wav:
+Original procedural sound effects generated for 接谜 by scripts/generate-sounds.ts.
+No third-party samples used. These six effects are dedicated to the public domain
+under CC0 1.0: https://creativecommons.org/publicdomain/zero/1.0/
