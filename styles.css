@@ -104,12 +104,61 @@ a:focus-visible { outline: 1px solid #fff; outline-offset: 5px; }
   clip-path: polygon(50% 0, 100% 38.196601%, 80.901699% 100%, 19.098301% 100%, 0 38.196601%);
 }
 
+/* Width = twice the side; height = sqrt(3) times the side. */
+.hexagon::before {
+  width: 20px;
+  height: 17.320508px;
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+}
+
 .placeholder h1 { margin-bottom: 24px; }
 .placeholder-message { margin: 0 0 32px; line-height: 1.5; }
 .back-link { display: inline-flex; align-items: center; min-height: 44px; }
 
+/* Storage uses the same typography, monochrome palette, and row interaction. */
+.reading-page { display: block; padding-block: 64px; }
+.reading-page .page { margin-inline: auto; }
+.collection h1, .document h1 { margin-bottom: 20px; }
+.intro { margin: 0 0 32px; color: #b8b8b8; line-height: 1.8; }
+.collection-list { gap: 16px; }
+.collection-list a { display: block; }
+.collection-list small {
+  display: block;
+  margin-top: 4px;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #b8b8b8;
+  transition: color 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.collection-list a:focus-visible small,
+.collection-list a:active small { color: inherit; }
+.page-footer { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 40px; }
+.document { line-height: 1.8; }
+.document section + section { margin-top: 40px; }
+.document h2 { margin: 0 0 16px; font-size: 22px; line-height: 1.5; font-weight: 400; }
+.document h3 { margin: 28px 0 12px; font-size: 18px; font-weight: 400; }
+.document p { margin: 0 0 16px; }
+.document ul, .document ol { margin: 0; padding-left: 24px; }
+.document li + li { margin-top: 16px; }
+.resource-list { padding: 0 !important; list-style: none; }
+.resource-list a { display: inline-block; padding-block: 6px; }
+.resource-list p, .muted { color: #b8b8b8; }
+.resource-list p { margin: 0; font-size: 15px; }
+.document a:not(.back-link), .archive-links a { text-underline-offset: 5px; }
+.document a:not(.back-link):hover,
+.document a:not(.back-link):focus-visible,
+.archive-links a:hover, .archive-links a:focus-visible { text-decoration: underline; }
+.archive-links { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 40px; font-size: 15px; }
+.document .file-actions { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 24px 0 32px; }
+.document .file-actions a { display: inline-flex; align-items: center; min-height: 44px; }
+
+@media (hover: hover) {
+  .collection-list a:hover small { color: inherit; }
+}
+
 @media (max-width: 540px) {
   h1 { font-size: 28px; margin-bottom: 32px; }
+  .reading-page { padding-block: 40px; }
 }
 
 @media (max-height: 420px) {
@@ -119,5 +168,5 @@ a:focus-visible { outline: 1px solid #fff; outline-offset: 5px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .page-list a { transition: none; }
+  .page-list a, .collection-list small { transition: none; }
 }

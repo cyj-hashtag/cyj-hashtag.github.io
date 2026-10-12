@@ -1,0 +1,126 @@
+如果你想做AI相关的工作，不妨考虑一下Agent Infra这个新兴领域。我最近也在入门这个领域，做了一些调研，记录了这个领域需要的技能清单，欢迎收藏，保存，我也会继续分享在这个领域的学习心得。
+
+完整 List：
+1.Agent Runtime：理解 Agent Loop、Tool Calling、Streaming、Session，理解并实现一个最小可用Agent，而不是只调用一次模型 API。
+2.上下文与状态管理：喂给大模型的上下文决定了这一轮模型能看到什么，也很大程度上决定模型做的决策质量；State 会保存任务当前执行到了哪里。需要处理上下文裁剪、压缩、Checkpoint、任务状态，长期记忆与短期上下文。
+3.任务队列与 Worker：把任务通过 Queue 分发给 Worker 执行，并控制并发、优先级、Backpressure 和 Worker Pool。
+4.调度与多 Agent 编排：把复杂任务拆成多个子任务，支持DAG、Reviewer、Handoff 和 Human-in-the-loop。
+5.Durable Execution：Agent 即使运行几十分钟甚至几个小时后，也不会因为进程重启而导致任务的丢失，需要持久化执行状态、Checkpoint、Replay、Resume 和 Recovery。
+6.Retry、Timeout 与幂等：模型、工具、网络和 Worker 等各方面都会遇到问题；系统要能判断什么时候重试、什么时候超时，以及避免 git push、发邮件、创建资源等操作被重复执行。
+7.分布式状态与一致性：多个 Orchestrator、Worker 和数据库共同维护 Task State，需要理解 Transaction、WAL、Lease、Heartbeat、Replication、Consistency 以及故障恢复。
+8.Sandbox 与执行环境：Coding Agent 会执行 Shell、Git、Python、构建和测试，需要为每个 Agent 提供隔离的文件系统、进程、网络和资源环境，并限制 CPU、内存和执行时间。
+9.工具基础设施与 MCP：Agent 不只是调用几个 Function，还需要统一管理 Shell、Filesystem、Browser、Database、API 等工具；MCP 可以作为 Agent 与外部工具、资源之间的一种标准接口。
+10.权限、安全与 Secrets：控制 Agent 能访问哪些文件、调用哪些工具、连接哪些网络和读取哪些密钥，涉及 Authentication、Authorization、ACL、Secret Management 和 Audit。
+11.可观测性与调试：Agent Task 的完整执行过程会通过trace记录下来，用 Metrics 看延迟、Queue、Token、成本、失败率和 Retry。
+12.Evaluation 与 Replay：不只看“Agent 能不能跑”，还要判断任务是否真的完成正确，通过 Dataset、Rubric、Task Success Rate、Regression、Replay 和 LLM-as-Judge 做持续评估。
+
+
+Anthropic 这次出手挺大方，22 门 Claude 课程直接全免，一分钱不要。
+
+我把这些课挨个过了一遍，坦白说，有些内容比较凑数，有些确实值得花时间。怕你没头绪乱点，我按从零基础到进阶的顺序给你理好了，跟着走就行。
+
+一、先打地基，别上来就挑难的
+01 Claude 101
+https://academy.claude.com/courses/claude-101
+02 Claude 协作入门
+https://academy.claude.com/courses/introduction-to-claude-cowork
+
+二、搞代码的重点看这几门，Claude Code 现在真能顶事
+03 Claude Code 101
+https://academy.claude.com/courses/claude-code-101
+04 Claude Code 实战
+https://academy.claude.com/courses/claude-code-in-action
+05 Agent 技能入门
+https://academy.claude.com/courses/introduction-to-agent-skills
+06 Subagents 子代理入门
+https://academy.claude.com/courses/introduction-to-subagents
+
+三、打算接 API、走开发路子的，平台部分别落下
+07 Claude 平台 101
+https://academy.claude.com/courses/claude-platform-101
+08 基于 Claude API 开发
+https://academy.claude.com/courses/building-with-the-claude-api
+09 MCP 入门
+https://academy.claude.com/courses/introduction-to-model-context-protocol
+10 MCP 进阶话题
+https://academy.claude.com/courses/model-context-protocol-advanced-topics
+11 Claude 与 Amazon Bedrock
+https://academy.claude.com/courses/claude-with-amazon-bedrock
+12 Claude 与 Vertex AI
+https://academy.claude.com/courses/claude-with-google-cloud-s-vertex-ai
+
+四、基础素养这块，覆盖人群特别广，怎么都能找到合适的
+13 AI 素养框架与基础
+https://academy.claude.com/courses/ai-fluency-framework-foundations
+14 AI 能力与局限
+https://academy.claude.com/courses/ai-capabilities-and-limitations
+15 开发者 AI 素养
+https://academy.claude.com/courses/ai-fluency-for-builders
+16 小企业 AI 素养
+https://academy.claude.com/courses/ai-fluency-for-small-businesses
+17 学生 AI 素养
+https://academy.claude.com/courses/ai-fluency-for-students
+18 非营利组织 AI 素养
+https://academy.claude.com/courses/ai-fluency-for-nonprofits
+19 教育者 AI 素养
+https://academy.claude.com/courses/ai-fluency-for-educators
+20 K-12 教育者 AI 素养
+https://academy.claude.com/courses/ai-fluency-for-k-12-educators
+21 K-12 培训师培训
+https://academy.claude.com/courses/ai-fluency-for-pk-12-train-the-trainer
+22 AI 素养教学
+https://academy.claude.com/courses/teaching-ai-fluency
+
+我猜你大概率先点收藏，然后转头忘干净。收藏夹里吃灰的课，跟压根没有，区别不大。
+
+那问一句，你上回完整学完一门免费课，是多久之前的事了？
+有点不好意思说，我上一门学完的，得往前数两年。
+白来的东西，人总是不太当回事；可 Claude 这批课要是真学透了，能换来的价值远不止一星半点。别收藏完就搁那儿了，今晚挑一门，直接点开看。
+
+
+
+如何自学：https://github.com/xiaolai/the-craft-of-selfteaching
+如何自由：https://wallesspku.org/zh/
+如何订阅：https://ji8.ai/
+
+
+
+用 Codex 整理了目前比较主流的 LLM 学习教程
+偏动手写代码、理解模型原理和训练流程：
+
+1. Zero to Hero｜
+@Karpathy
+
+OpenAI 创始团队成员、前特斯拉 AI 负责人
+从神经网络基础讲起带你手写语言模型、GPT 和分词器
+https://github.com/karpathy/nn-zero-to-hero
+
+2. LLMs from Scratch｜
+@rasbt
+
+前威斯康星大学麦迪逊分校教授、机器学习畅销书作者
+用 PyTorch 从零实现 GPT，覆盖注意力、预训练和微调
+https://github.com/rasbt/LLMs-from-scratch
+
+3. Happy-LLM｜Datawhale
+国内 AI 开源学习社区出品
+中文讲解 Transformer、大模型原理与训练，结合代码从零构建模型
+https://github.com/datawhalechina/happy-llm
+
+4. nanoGPT｜
+@Karpathy
+
+精简的 GPT 训练代码，适合学完基础后读源码、跑一个小模型
+https://github.com/karpathy/nanoGPT
+
+5. CS336｜斯坦福大学
+斯坦福“从零构建语言模型”公开课，配有编程作业
+深入模型实现、训练和数据处理，适合进阶
+https://cs336.stanford.edu/spring2025/
+
+虽然我的学习过程是没有看教程的
+全程AI原生的方式学习
+但就目前我学完后的体验来看
+还是跟着专业教程学比较好
+因为自己的理解是有偏差的，有点民科的感觉....
+
