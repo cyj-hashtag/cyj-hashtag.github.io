@@ -18,18 +18,6 @@
   let theme = validTheme(savedTheme) ? savedTheme : systemTheme.matches ? 'dark' : 'light';
   let language = validLanguage(read(languageKey)) ? read(languageKey) : browserLanguage();
 
-  const updateLanguageIndicator = () => {
-    const button = document.querySelector('[data-language-toggle]');
-    if (!button || !button.getClientRects().length) return;
-    const option = button.querySelector(`[data-locale-option="${language}"]`);
-    const bounds = button.getBoundingClientRect();
-    const selected = option.getBoundingClientRect();
-    button.style.setProperty('--locale-x', `${selected.left - bounds.left}px`);
-    button.style.setProperty('--locale-y', `${selected.bottom - bounds.top - 1}px`);
-    button.style.setProperty('--locale-width', `${selected.width}px`);
-    button.dataset.localeReady = '';
-  };
-
   const apply = () => {
     root.dataset.theme = theme;
     root.dataset.language = language;
@@ -60,7 +48,6 @@
       languageButton.setAttribute('aria-label', label);
       languageButton.setAttribute('aria-pressed', String(language === 'zh'));
       languageButton.title = label;
-      updateLanguageIndicator();
     }
   };
 
@@ -81,15 +68,16 @@
       apply();
     });
     themeButton.addEventListener('pointerleave', () => { delete themeButton.dataset.hoverSuppressed; });
-    controls.querySelector('[data-language-toggle]').addEventListener('click', () => {
+    const languageButton = controls.querySelector('[data-language-toggle]');
+    languageButton.addEventListener('click', () => {
+      // Page loads start in place; only a language selection moves the underline.
+      languageButton.dataset.localeAnimate = '';
       language = language === 'zh' ? 'en' : 'zh';
       write(languageKey, language);
       apply();
     });
     controls.hidden = false;
     apply();
-    if (document.fonts) document.fonts.ready.then(updateLanguageIndicator);
-    window.addEventListener('resize', updateLanguageIndicator);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready, { once: true });
   else ready();

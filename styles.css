@@ -211,22 +211,34 @@ a:focus-visible { outline: 1px solid var(--foreground); outline-offset: 5px; }
   background: var(--muted);
   transition: background-color 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
-.language-toggle { position: relative; gap: 6px; }
+.locale-track {
+  position: relative;
+  display: grid;
+  /* Fixed text slots keep the indicator still while the web fonts load. */
+  grid-template-columns: 14px 8px 20px;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
 .locale-option { padding-block: 2px; border-bottom: 1px solid transparent; color: var(--muted); }
 .locale-slash { color: var(--muted); }
 .locale-option, .locale-slash { transition: color 420ms cubic-bezier(0.22, 1, 0.36, 1); }
-.language-toggle::after {
+.locale-track::after {
   content: "";
   position: absolute;
   inset-inline-start: 0;
-  inset-block-start: var(--locale-y, 0px);
-  width: var(--locale-width, 0px);
+  inset-block-end: 0;
+  width: 14px;
   height: 1px;
   background: currentColor;
-  transform: translateX(var(--locale-x, 0px));
+  transform: translateX(0);
   pointer-events: none;
 }
-.language-toggle[data-locale-ready]::after {
+:root[data-language="en"] .locale-track::after {
+  width: 18px;
+  transform: translateX(35px);
+}
+.language-toggle[data-locale-animate] .locale-track::after {
   transition:
     transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
     width 280ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -303,5 +315,6 @@ a:focus-visible { outline: 1px solid var(--foreground); outline-offset: 5px; }
 @media (prefers-reduced-motion: reduce) {
   :root, body, .page-list a, .collection-list small, .theme-mark,
   .site-control, .intro, .resource-list p, .muted, .control-divider,
-  .locale-option, .locale-slash, .language-toggle[data-locale-ready]::after { transition: none; }
+  .locale-option, .locale-slash,
+  .language-toggle[data-locale-animate] .locale-track::after { transition: none; }
 }
