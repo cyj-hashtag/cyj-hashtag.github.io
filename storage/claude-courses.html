@@ -1,73 +1,83 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en" data-language="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#000000">
-  <meta name="description" content="Claude Courses：cyj-hashtag 的学习资料收藏。">
-  <title>Claude Courses | cyj-hashtag</title>
+  <meta name="description" content="Claude Courses: cyj-hashtag’s personal website." data-description-en="Claude Courses: cyj-hashtag’s personal website." data-description-zh="Claude 课程：cyj-hashtag 的个人网站。">
+  <title data-title-en="Claude Courses | cyj-hashtag" data-title-zh="Claude 课程 | cyj-hashtag">Claude Courses | cyj-hashtag</title>
   <link rel="icon" href="data:,">
   <link rel="preload" href="../assets/fonts/jost-latin-400.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="../styles.css?v=20261013-storage">
+  <script src="../site.js?v=20261013-theme-language"></script>
+  <link rel="stylesheet" href="../styles.css?v=20261013-theme-language">
 </head>
 <body class="reading-page">
+  <div class="site-controls" role="group" aria-label="Appearance and language" data-label-en="Appearance and language" data-label-zh="外观与语言" hidden>
+    <button class="site-control theme-toggle" type="button" data-theme-toggle aria-label="Switch to day mode" aria-pressed="true">
+      <span class="theme-mark" aria-hidden="true"></span><span class="theme-name">Night</span>
+    </button>
+    <span class="control-divider" aria-hidden="true"></span>
+    <button class="site-control language-toggle" type="button" data-language-toggle aria-label="Switch to Chinese" aria-pressed="false">
+      <span class="locale-option" data-locale-option="zh" lang="zh-CN">中</span><span class="locale-slash" aria-hidden="true">/</span><span class="locale-option" data-locale-option="en" lang="en">EN</span>
+    </button>
+  </div>
   <main class="page document" aria-labelledby="page-title">
-    <h1 id="page-title">Claude Courses</h1>
-    <p class="intro">原始资料中收藏的 22 门课程，按学习方向分组。完整目录见 <a href="https://academy.claude.com/courses/">Claude Academy</a>。</p>
+    <h1 id="page-title"><span data-language-content="en" lang="en">Claude Courses</span><span data-language-content="zh" lang="zh-CN">Claude 课程</span></h1>
+    <p class="intro"><span data-language-content="en" lang="en">22 bookmarked courses, grouped by learning path. The full catalogue is at </span><span data-language-content="zh" lang="zh-CN">原始资料中收藏的 22 门课程，按学习方向分组。完整目录见</span> <a href="https://academy.claude.com/courses/">Claude Academy</a><span data-language-content="en" lang="en">.</span><span data-language-content="zh" lang="zh-CN">。</span></p>
     <section>
-      <h2>产品入门</h2>
+      <h2><span data-language-content="en" lang="en">Getting started</span><span data-language-content="zh" lang="zh-CN">产品入门</span></h2>
       <ul class="resource-list">
         <li><a href="https://academy.claude.com/courses/claude-101">Claude 101</a></li>
-        <li><a href="https://academy.claude.com/courses/introduction-to-claude-cowork">Claude 协作入门</a></li>
+        <li><a href="https://academy.claude.com/courses/introduction-to-claude-cowork"><span data-language-content="en" lang="en">Introduction to Claude Cowork</span><span data-language-content="zh" lang="zh-CN">Claude 协作入门</span></a></li>
       </ul>
     </section>
     <section>
-      <h2>编程与 Agent</h2>
+      <h2><span data-language-content="en" lang="en">Coding &amp; agents</span><span data-language-content="zh" lang="zh-CN">编程与 Agent</span></h2>
       <ul class="resource-list">
         <li><a href="https://academy.claude.com/courses/claude-code-101">Claude Code 101</a></li>
-        <li><a href="https://academy.claude.com/courses/claude-code-in-action">Claude Code 实战</a></li>
-        <li><a href="https://academy.claude.com/courses/introduction-to-agent-skills">Agent 技能入门</a></li>
-        <li><a href="https://academy.claude.com/courses/introduction-to-subagents">Subagents 子代理入门</a></li>
+        <li><a href="https://academy.claude.com/courses/claude-code-in-action"><span data-language-content="en" lang="en">Claude Code in Action</span><span data-language-content="zh" lang="zh-CN">Claude Code 实战</span></a></li>
+        <li><a href="https://academy.claude.com/courses/introduction-to-agent-skills"><span data-language-content="en" lang="en">Introduction to Agent Skills</span><span data-language-content="zh" lang="zh-CN">Agent 技能入门</span></a></li>
+        <li><a href="https://academy.claude.com/courses/introduction-to-subagents"><span data-language-content="en" lang="en">Introduction to Subagents</span><span data-language-content="zh" lang="zh-CN">Subagents 子代理入门</span></a></li>
       </ul>
     </section>
     <section>
-      <h2>平台、API 与 MCP</h2>
+      <h2><span data-language-content="en" lang="en">Platform, API &amp; MCP</span><span data-language-content="zh" lang="zh-CN">平台、API 与 MCP</span></h2>
       <ul class="resource-list">
-        <li><a href="https://academy.claude.com/courses/claude-platform-101">Claude 平台 101</a></li>
-        <li><a href="https://academy.claude.com/courses/building-with-the-claude-api">基于 Claude API 开发</a></li>
-        <li><a href="https://academy.claude.com/courses/introduction-to-model-context-protocol">MCP 入门</a></li>
-        <li><a href="https://academy.claude.com/courses/model-context-protocol-advanced-topics">MCP 进阶话题</a></li>
-        <li><a href="https://academy.claude.com/courses/claude-with-amazon-bedrock">Claude 与 Amazon Bedrock</a></li>
-        <li><a href="https://academy.claude.com/courses/claude-with-google-cloud-s-vertex-ai">Claude 与 Google Cloud Vertex AI</a></li>
+        <li><a href="https://academy.claude.com/courses/claude-platform-101"><span data-language-content="en" lang="en">Claude Platform 101</span><span data-language-content="zh" lang="zh-CN">Claude 平台 101</span></a></li>
+        <li><a href="https://academy.claude.com/courses/building-with-the-claude-api"><span data-language-content="en" lang="en">Building with the Claude API</span><span data-language-content="zh" lang="zh-CN">基于 Claude API 开发</span></a></li>
+        <li><a href="https://academy.claude.com/courses/introduction-to-model-context-protocol"><span data-language-content="en" lang="en">Introduction to Model Context Protocol</span><span data-language-content="zh" lang="zh-CN">MCP 入门</span></a></li>
+        <li><a href="https://academy.claude.com/courses/model-context-protocol-advanced-topics"><span data-language-content="en" lang="en">Model Context Protocol: Advanced Topics</span><span data-language-content="zh" lang="zh-CN">MCP 进阶话题</span></a></li>
+        <li><a href="https://academy.claude.com/courses/claude-with-amazon-bedrock"><span data-language-content="en" lang="en">Claude with Amazon Bedrock</span><span data-language-content="zh" lang="zh-CN">Claude 与 Amazon Bedrock</span></a></li>
+        <li><a href="https://academy.claude.com/courses/claude-with-google-cloud-s-vertex-ai"><span data-language-content="en" lang="en">Claude with Google Cloud’s Vertex AI</span><span data-language-content="zh" lang="zh-CN">Claude 与 Google Cloud Vertex AI</span></a></li>
       </ul>
     </section>
     <section>
-      <h2>AI 素养基础</h2>
+      <h2><span data-language-content="en" lang="en">AI fluency foundations</span><span data-language-content="zh" lang="zh-CN">AI 素养基础</span></h2>
       <ul class="resource-list">
-        <li><a href="https://academy.claude.com/courses/ai-fluency-framework-foundations">AI 素养框架与基础</a></li>
-        <li><a href="https://academy.claude.com/courses/ai-capabilities-and-limitations">AI 能力与局限</a></li>
+        <li><a href="https://academy.claude.com/courses/ai-fluency-framework-foundations"><span data-language-content="en" lang="en">AI Fluency: Framework &amp; Foundations</span><span data-language-content="zh" lang="zh-CN">AI 素养框架与基础</span></a></li>
+        <li><a href="https://academy.claude.com/courses/ai-capabilities-and-limitations"><span data-language-content="en" lang="en">AI Capabilities &amp; Limitations</span><span data-language-content="zh" lang="zh-CN">AI 能力与局限</span></a></li>
       </ul>
     </section>
     <section>
-      <h2>不同角色的 AI 素养</h2>
+      <h2><span data-language-content="en" lang="en">AI fluency for different roles</span><span data-language-content="zh" lang="zh-CN">不同角色的 AI 素养</span></h2>
       <ul class="resource-list">
-        <li><a href="https://academy.claude.com/courses/ai-fluency-for-builders">开发者 AI 素养</a></li>
-        <li><a href="https://academy.claude.com/courses/ai-fluency-for-small-businesses">小企业 AI 素养</a></li>
-        <li><a href="https://academy.claude.com/courses/ai-fluency-for-students">学生 AI 素养</a></li>
-        <li><a href="https://academy.claude.com/courses/ai-fluency-for-nonprofits">非营利组织 AI 素养</a></li>
+        <li><a href="https://academy.claude.com/courses/ai-fluency-for-builders"><span data-language-content="en" lang="en">AI Fluency for Builders</span><span data-language-content="zh" lang="zh-CN">开发者 AI 素养</span></a></li>
+        <li><a href="https://academy.claude.com/courses/ai-fluency-for-small-businesses"><span data-language-content="en" lang="en">AI Fluency for Small Businesses</span><span data-language-content="zh" lang="zh-CN">小企业 AI 素养</span></a></li>
+        <li><a href="https://academy.claude.com/courses/ai-fluency-for-students"><span data-language-content="en" lang="en">AI Fluency for Students</span><span data-language-content="zh" lang="zh-CN">学生 AI 素养</span></a></li>
+        <li><a href="https://academy.claude.com/courses/ai-fluency-for-nonprofits"><span data-language-content="en" lang="en">AI Fluency for Nonprofits</span><span data-language-content="zh" lang="zh-CN">非营利组织 AI 素养</span></a></li>
       </ul>
     </section>
     <section>
-      <h2>教育与教学</h2>
+      <h2><span data-language-content="en" lang="en">Education &amp; teaching</span><span data-language-content="zh" lang="zh-CN">教育与教学</span></h2>
       <ul class="resource-list">
-        <li><a href="https://academy.claude.com/courses/ai-fluency-for-educators">教育者 AI 素养</a></li>
-        <li><a href="https://academy.claude.com/courses/ai-fluency-for-k-12-educators">pK–12 教育者 AI 素养</a></li>
-        <li><a href="https://academy.claude.com/courses/ai-fluency-for-pk-12-train-the-trainer">pK–12 培训师培训</a></li>
-        <li><a href="https://academy.claude.com/courses/teaching-ai-fluency">AI 素养教学</a></li>
+        <li><a href="https://academy.claude.com/courses/ai-fluency-for-educators"><span data-language-content="en" lang="en">AI Fluency for Educators</span><span data-language-content="zh" lang="zh-CN">教育者 AI 素养</span></a></li>
+        <li><a href="https://academy.claude.com/courses/ai-fluency-for-k-12-educators"><span data-language-content="en" lang="en">AI Fluency for pK–12 Educators</span><span data-language-content="zh" lang="zh-CN">pK–12 教育者 AI 素养</span></a></li>
+        <li><a href="https://academy.claude.com/courses/ai-fluency-for-pk-12-train-the-trainer"><span data-language-content="en" lang="en">AI Fluency for pK–12 Train the Trainer</span><span data-language-content="zh" lang="zh-CN">pK–12 培训师培训</span></a></li>
+        <li><a href="https://academy.claude.com/courses/teaching-ai-fluency"><span data-language-content="en" lang="en">Teaching AI Fluency</span><span data-language-content="zh" lang="zh-CN">AI 素养教学</span></a></li>
       </ul>
     </section>
 
-    <nav class="page-footer" aria-label="返回"><a class="back-link" href="../storage.html">Storage</a><a class="back-link" href="../index.html">Home</a></nav>
+    <nav class="page-footer" aria-label="Back" data-label-en="Back" data-label-zh="返回"><a class="back-link" href="../storage.html"><span data-language-content="en" lang="en">Storage</span><span data-language-content="zh" lang="zh-CN">存货</span></a><a class="back-link" href="../index.html"><span data-language-content="en" lang="en">Home</span><span data-language-content="zh" lang="zh-CN">主页</span></a></nav>
   </main>
 </body>
 </html>

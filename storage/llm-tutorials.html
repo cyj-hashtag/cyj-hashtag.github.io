@@ -1,31 +1,41 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en" data-language="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#000000">
-  <meta name="description" content="LLM Tutorials：cyj-hashtag 的学习资料收藏。">
-  <title>LLM Tutorials | cyj-hashtag</title>
+  <meta name="description" content="LLM Tutorials: cyj-hashtag’s personal website." data-description-en="LLM Tutorials: cyj-hashtag’s personal website." data-description-zh="大语言模型教程：cyj-hashtag 的个人网站。">
+  <title data-title-en="LLM Tutorials | cyj-hashtag" data-title-zh="大语言模型教程 | cyj-hashtag">LLM Tutorials | cyj-hashtag</title>
   <link rel="icon" href="data:,">
   <link rel="preload" href="../assets/fonts/jost-latin-400.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="../styles.css?v=20261013-storage">
+  <script src="../site.js?v=20261013-theme-language"></script>
+  <link rel="stylesheet" href="../styles.css?v=20261013-theme-language">
 </head>
 <body class="reading-page">
+  <div class="site-controls" role="group" aria-label="Appearance and language" data-label-en="Appearance and language" data-label-zh="外观与语言" hidden>
+    <button class="site-control theme-toggle" type="button" data-theme-toggle aria-label="Switch to day mode" aria-pressed="true">
+      <span class="theme-mark" aria-hidden="true"></span><span class="theme-name">Night</span>
+    </button>
+    <span class="control-divider" aria-hidden="true"></span>
+    <button class="site-control language-toggle" type="button" data-language-toggle aria-label="Switch to Chinese" aria-pressed="false">
+      <span class="locale-option" data-locale-option="zh" lang="zh-CN">中</span><span class="locale-slash" aria-hidden="true">/</span><span class="locale-option" data-locale-option="en" lang="en">EN</span>
+    </button>
+  </div>
   <main class="page document" aria-labelledby="page-title">
-    <h1 id="page-title">LLM Tutorials</h1>
-    <p class="intro">从基础到进阶整理的 5 份教程与代码资料。</p>
+    <h1 id="page-title"><span data-language-content="en" lang="en">LLM Tutorials</span><span data-language-content="zh" lang="zh-CN">大语言模型教程</span></h1>
+    <p class="intro"><span data-language-content="en" lang="en">5 tutorials and code resources, arranged from foundations to advanced study.</span><span data-language-content="zh" lang="zh-CN">从基础到进阶整理的 5 份教程与代码资料。</span></p>
     <section>
-      <h2>教程与代码</h2>
+      <h2><span data-language-content="en" lang="en">Tutorials &amp; code</span><span data-language-content="zh" lang="zh-CN">教程与代码</span></h2>
       <ol>
-        <li><a href="https://github.com/karpathy/nn-zero-to-hero">Neural Networks: Zero to Hero</a><p class="muted">Andrej Karpathy<br>通过视频与练习学习神经网络、反向传播、语言模型和分词器。</p></li>
-        <li><a href="https://github.com/datawhalechina/happy-llm">Happy-LLM</a><p class="muted">Datawhale<br>中文教程，结合原理与代码学习 Transformer、大模型构建、训练和应用。</p></li>
-        <li><a href="https://github.com/rasbt/LLMs-from-scratch">LLMs from Scratch</a><p class="muted">Sebastian Raschka<br>配套代码，用 PyTorch 逐步实现 GPT 类模型，学习预训练与微调。</p></li>
-        <li><a href="https://github.com/karpathy/nanoGPT">nanoGPT</a><p class="muted">Andrej Karpathy<br>精简的 GPT 训练代码，可作为源码阅读材料。项目已标记为旧版，作者推荐的新项目见仓库说明。</p></li>
-        <li><a href="https://cs336.stanford.edu/spring2025/">CS336 · Language Modeling from Scratch</a><p class="muted">Stanford · Spring 2025<br>公开课与编程作业，覆盖语言模型构建、训练及数据处理。</p></li>
+        <li><a href="https://github.com/karpathy/nn-zero-to-hero"><span data-language-content="en" lang="en">Neural Networks: Zero to Hero</span><span data-language-content="zh" lang="zh-CN">神经网络：从零到精通</span></a><p class="muted">Andrej Karpathy<br><span data-language-content="en" lang="en">Learn neural networks, backpropagation, language models and tokenizers through videos and exercises.</span><span data-language-content="zh" lang="zh-CN">通过视频与练习学习神经网络、反向传播、语言模型和分词器。</span></p></li>
+        <li><a href="https://github.com/datawhalechina/happy-llm">Happy-LLM</a><p class="muted">Datawhale<br><span data-language-content="en" lang="en">A Chinese tutorial combining theory and code to study Transformers, model building, training and applications.</span><span data-language-content="zh" lang="zh-CN">中文教程，结合原理与代码学习 Transformer、大模型构建、训练和应用。</span></p></li>
+        <li><a href="https://github.com/rasbt/LLMs-from-scratch"><span data-language-content="en" lang="en">LLMs from Scratch</span><span data-language-content="zh" lang="zh-CN">从零构建大语言模型</span></a><p class="muted">Sebastian Raschka<br><span data-language-content="en" lang="en">Companion code for building a GPT-style model in PyTorch, covering pretraining and fine-tuning.</span><span data-language-content="zh" lang="zh-CN">配套代码，用 PyTorch 逐步实现 GPT 类模型，学习预训练与微调。</span></p></li>
+        <li><a href="https://github.com/karpathy/nanoGPT">nanoGPT</a><p class="muted">Andrej Karpathy<br><span data-language-content="en" lang="en">A compact GPT training codebase for source reading. The project is marked as deprecated; see its README for the author’s newer project.</span><span data-language-content="zh" lang="zh-CN">精简的 GPT 训练代码，可作为源码阅读材料。项目已标记为旧版，作者推荐的新项目见仓库说明。</span></p></li>
+        <li><a href="https://cs336.stanford.edu/spring2025/"><span data-language-content="en" lang="en">CS336 · Language Modeling from Scratch</span><span data-language-content="zh" lang="zh-CN">CS336 · 从零构建语言模型</span></a><p class="muted"><span data-language-content="en" lang="en">Stanford · Spring 2025</span><span data-language-content="zh" lang="zh-CN">斯坦福大学 · 2025 年春季</span><br><span data-language-content="en" lang="en">Public lectures and programming assignments on language model building, training and data processing.</span><span data-language-content="zh" lang="zh-CN">公开课与编程作业，覆盖语言模型构建、训练及数据处理。</span></p></li>
       </ol>
     </section>
 
-    <nav class="page-footer" aria-label="返回"><a class="back-link" href="../storage.html">Storage</a><a class="back-link" href="../index.html">Home</a></nav>
+    <nav class="page-footer" aria-label="Back" data-label-en="Back" data-label-zh="返回"><a class="back-link" href="../storage.html"><span data-language-content="en" lang="en">Storage</span><span data-language-content="zh" lang="zh-CN">存货</span></a><a class="back-link" href="../index.html"><span data-language-content="en" lang="en">Home</span><span data-language-content="zh" lang="zh-CN">主页</span></a></nav>
   </main>
 </body>
 </html>

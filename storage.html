@@ -1,33 +1,43 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en" data-language="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#000000">
-  <meta name="description" content="Storage：cyj-hashtag 的学习资料收藏。">
-  <title>Storage | cyj-hashtag</title>
+  <meta name="description" content="Storage: cyj-hashtag’s personal website." data-description-en="Storage: cyj-hashtag’s personal website." data-description-zh="存货：cyj-hashtag 的个人网站。">
+  <title data-title-en="Storage | cyj-hashtag" data-title-zh="存货 | cyj-hashtag">Storage | cyj-hashtag</title>
   <link rel="icon" href="data:,">
   <link rel="preload" href="assets/fonts/jost-latin-400.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=20261013-storage">
+  <script src="site.js?v=20261013-theme-language"></script>
+  <link rel="stylesheet" href="styles.css?v=20261013-theme-language">
 </head>
 <body class="reading-page">
+  <div class="site-controls" role="group" aria-label="Appearance and language" data-label-en="Appearance and language" data-label-zh="外观与语言" hidden>
+    <button class="site-control theme-toggle" type="button" data-theme-toggle aria-label="Switch to day mode" aria-pressed="true">
+      <span class="theme-mark" aria-hidden="true"></span><span class="theme-name">Night</span>
+    </button>
+    <span class="control-divider" aria-hidden="true"></span>
+    <button class="site-control language-toggle" type="button" data-language-toggle aria-label="Switch to Chinese" aria-pressed="false">
+      <span class="locale-option" data-locale-option="zh" lang="zh-CN">中</span><span class="locale-slash" aria-hidden="true">/</span><span class="locale-option" data-locale-option="en" lang="en">EN</span>
+    </button>
+  </div>
   <main class="page collection" aria-labelledby="page-title">
-    <h1 id="page-title">Storage</h1>
-    <p class="intro">学习资料与参考链接。</p>
-    <nav aria-label="资料分类">
+    <h1 id="page-title"><span data-language-content="en" lang="en">Storage</span><span data-language-content="zh" lang="zh-CN">存货</span></h1>
+    <p class="intro"><span data-language-content="en" lang="en">Study materials and reference links.</span><span data-language-content="zh" lang="zh-CN">学习资料与参考链接。</span></p>
+    <nav aria-label="Collections" data-label-en="Collections" data-label-zh="资料分类">
       <ul class="page-list collection-list" role="list">
-        <li><a href="storage/agent-infra.html">Agent Infra<small>12 项技能，按运行、可靠性和工具分组。</small></a></li>
-        <li><a href="storage/claude-courses.html">Claude Courses<small>22 门收藏课程，从产品入门到 API 与 AI 素养。</small></a></li>
-        <li><a href="storage/llm-tutorials.html">LLM Tutorials<small>5 份教程与代码，从神经网络基础到语言模型训练。</small></a></li>
-        <li><a href="storage/self-learning.html">Self-learning &amp; Resources<small>自学方法与其他参考网站。</small></a></li>
-        <li><a href="storage/sjtu-manual.html">上海交通大学生存手册<small>301 页 PDF，附章节入口、在线阅读和原项目。</small></a></li>
+        <li><a href="storage/agent-infra.html"><span data-language-content="en" lang="en">Agent Infra</span><span data-language-content="zh" lang="zh-CN">智能体基础设施</span><small><span data-language-content="en" lang="en">12 skills, grouped by runtime, reliability and tooling.</span><span data-language-content="zh" lang="zh-CN">12 项技能，按运行、可靠性和工具分组。</span></small></a></li>
+        <li><a href="storage/claude-courses.html"><span data-language-content="en" lang="en">Claude Courses</span><span data-language-content="zh" lang="zh-CN">Claude 课程</span><small><span data-language-content="en" lang="en">22 courses on Claude, APIs and AI fluency.</span><span data-language-content="zh" lang="zh-CN">22 门收藏课程，从产品入门到 API 与 AI 素养。</span></small></a></li>
+        <li><a href="storage/llm-tutorials.html"><span data-language-content="en" lang="en">LLM Tutorials</span><span data-language-content="zh" lang="zh-CN">大语言模型教程</span><small><span data-language-content="en" lang="en">5 resources, from neural networks to language model training.</span><span data-language-content="zh" lang="zh-CN">5 份教程与代码，从神经网络基础到语言模型训练。</span></small></a></li>
+        <li><a href="storage/self-learning.html"><span data-language-content="en" lang="en">Self-learning &amp; Resources</span><span data-language-content="zh" lang="zh-CN">自学与参考资源</span><small><span data-language-content="en" lang="en">Self-teaching methods and other reference sites.</span><span data-language-content="zh" lang="zh-CN">自学方法与其他参考网站。</span></small></a></li>
+        <li><a href="storage/sjtu-manual.html"><span data-language-content="en" lang="en">SJTU Survival Manual</span><span data-language-content="zh" lang="zh-CN">上海交通大学生存手册</span><small><span data-language-content="en" lang="en">301-page PDF with chapter links and the original project.</span><span data-language-content="zh" lang="zh-CN">301 页 PDF，附章节入口、在线阅读和原项目。</span></small></a></li>
       </ul>
     </nav>
     <div class="archive-links">
-      <a href="storage/files/learning-resources.md" download="学习资料-整理版.md">下载整理版</a>
-      <a href="storage/files/learning-resources-original.txt" download="学习资料-原始文本.txt">下载原始文本</a>
+      <a href="storage/files/learning-resources.md" download="学习资料-整理版.md"><span data-language-content="en" lang="en">Download notes (Chinese)</span><span data-language-content="zh" lang="zh-CN">下载整理版</span></a>
+      <a href="storage/files/learning-resources-original.txt" download="学习资料-原始文本.txt"><span data-language-content="en" lang="en">Download original (Chinese)</span><span data-language-content="zh" lang="zh-CN">下载原始文本</span></a>
     </div>
-    <nav class="page-footer" aria-label="返回"><a class="back-link" href="index.html">Home</a></nav>
+    <nav class="page-footer" aria-label="Back" data-label-en="Back" data-label-zh="返回"><a class="back-link" href="index.html"><span data-language-content="en" lang="en">Home</span><span data-language-content="zh" lang="zh-CN">主页</span></a></nav>
   </main>
 </body>
 </html>

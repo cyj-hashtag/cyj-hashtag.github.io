@@ -1,19 +1,29 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-language="en" data-theme="dark">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#000000">
-    <title>Blog | cyj-hashtag</title>
+    <title data-title-en="Blog | cyj-hashtag" data-title-zh="随笔 | cyj-hashtag">Blog | cyj-hashtag</title>
     <link rel="icon" href="data:,">
     <link rel="preload" href="assets/fonts/jost-latin-400.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="styles.css?v=20261013-storage">
+    <script src="site.js?v=20261013-theme-language"></script>
+  <link rel="stylesheet" href="styles.css?v=20261013-theme-language">
   </head>
   <body>
+  <div class="site-controls" role="group" aria-label="Appearance and language" data-label-en="Appearance and language" data-label-zh="外观与语言" hidden>
+    <button class="site-control theme-toggle" type="button" data-theme-toggle aria-label="Switch to day mode" aria-pressed="true">
+      <span class="theme-mark" aria-hidden="true"></span><span class="theme-name">Night</span>
+    </button>
+    <span class="control-divider" aria-hidden="true"></span>
+    <button class="site-control language-toggle" type="button" data-language-toggle aria-label="Switch to Chinese" aria-pressed="false">
+      <span class="locale-option" data-locale-option="zh" lang="zh-CN">中</span><span class="locale-slash" aria-hidden="true">/</span><span class="locale-option" data-locale-option="en" lang="en">EN</span>
+    </button>
+  </div>
     <main class="page placeholder" aria-labelledby="page-title">
-      <h1 id="page-title">Blog</h1>
-      <p class="placeholder-message">Coming soon.</p>
-      <a class="back-link" href="index.html">Home</a>
+      <h1 id="page-title"><span data-language-content="en" lang="en">Blog</span><span data-language-content="zh" lang="zh-CN">随笔</span></h1>
+      <p class="placeholder-message"><span data-language-content="en" lang="en">Coming soon.</span><span data-language-content="zh" lang="zh-CN">待续。</span></p>
+      <a class="back-link" href="index.html"><span data-language-content="en" lang="en">Home</span><span data-language-content="zh" lang="zh-CN">主页</span></a>
     </main>
   </body>
 </html>

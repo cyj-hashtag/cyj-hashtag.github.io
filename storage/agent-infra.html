@@ -1,53 +1,63 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en" data-language="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#000000">
-  <meta name="description" content="Agent Infra：cyj-hashtag 的学习资料收藏。">
-  <title>Agent Infra | cyj-hashtag</title>
+  <meta name="description" content="Agent Infra: cyj-hashtag’s personal website." data-description-en="Agent Infra: cyj-hashtag’s personal website." data-description-zh="智能体基础设施：cyj-hashtag 的个人网站。">
+  <title data-title-en="Agent Infra | cyj-hashtag" data-title-zh="智能体基础设施 | cyj-hashtag">Agent Infra | cyj-hashtag</title>
   <link rel="icon" href="data:,">
   <link rel="preload" href="../assets/fonts/jost-latin-400.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="../styles.css?v=20261013-storage">
+  <script src="../site.js?v=20261013-theme-language"></script>
+  <link rel="stylesheet" href="../styles.css?v=20261013-theme-language">
 </head>
 <body class="reading-page">
+  <div class="site-controls" role="group" aria-label="Appearance and language" data-label-en="Appearance and language" data-label-zh="外观与语言" hidden>
+    <button class="site-control theme-toggle" type="button" data-theme-toggle aria-label="Switch to day mode" aria-pressed="true">
+      <span class="theme-mark" aria-hidden="true"></span><span class="theme-name">Night</span>
+    </button>
+    <span class="control-divider" aria-hidden="true"></span>
+    <button class="site-control language-toggle" type="button" data-language-toggle aria-label="Switch to Chinese" aria-pressed="false">
+      <span class="locale-option" data-locale-option="zh" lang="zh-CN">中</span><span class="locale-slash" aria-hidden="true">/</span><span class="locale-option" data-locale-option="en" lang="en">EN</span>
+    </button>
+  </div>
   <main class="page document" aria-labelledby="page-title">
-    <h1 id="page-title">Agent Infra</h1>
-    <p class="intro">从原始笔记整理的 12 项技能清单。</p>
+    <h1 id="page-title"><span data-language-content="en" lang="en">Agent Infra</span><span data-language-content="zh" lang="zh-CN">智能体基础设施</span></h1>
+    <p class="intro"><span data-language-content="en" lang="en">A 12-skill checklist collected from the original notes.</span><span data-language-content="zh" lang="zh-CN">从原始笔记整理的 12 项技能清单。</span></p>
     <section>
-      <h2>运行与编排</h2>
+      <h2><span data-language-content="en" lang="en">Runtime &amp; orchestration</span><span data-language-content="zh" lang="zh-CN">运行与编排</span></h2>
       <ul>
-        <li>Agent Runtime<p class="muted">理解 Agent Loop、Tool Calling、Streaming 和 Session；实现一个能够循环执行任务的最小 Agent。</p></li>
-        <li>上下文与状态管理<p class="muted">区分模型当前能看到的上下文与任务执行状态。处理上下文裁剪、压缩、Checkpoint，以及短期上下文和长期记忆。</p></li>
-        <li>任务队列与 Worker<p class="muted">通过 Queue 分发任务，控制并发、优先级、Backpressure 和 Worker Pool。</p></li>
-        <li>调度与多 Agent 编排<p class="muted">拆分复杂任务，组织 DAG、Reviewer、Handoff 和 Human-in-the-loop。</p></li>
+        <li><span data-language-content="en" lang="en">Agent Runtime</span><span data-language-content="zh" lang="zh-CN">智能体运行时</span><p class="muted"><span data-language-content="en" lang="en">Understand agent loops, tool calling, streaming and sessions. Build a minimal agent that can work through a task in a loop.</span><span data-language-content="zh" lang="zh-CN">理解 Agent Loop、Tool Calling、Streaming 和 Session；实现一个能够循环执行任务的最小 Agent。</span></p></li>
+        <li><span data-language-content="en" lang="en">Context &amp; state management</span><span data-language-content="zh" lang="zh-CN">上下文与状态管理</span><p class="muted"><span data-language-content="en" lang="en">Distinguish the context a model can see from a task’s execution state. Handle context trimming, compression, checkpoints, short-term context and long-term memory.</span><span data-language-content="zh" lang="zh-CN">区分模型当前能看到的上下文与任务执行状态。处理上下文裁剪、压缩、Checkpoint，以及短期上下文和长期记忆。</span></p></li>
+        <li><span data-language-content="en" lang="en">Task queues &amp; workers</span><span data-language-content="zh" lang="zh-CN">任务队列与 Worker</span><p class="muted"><span data-language-content="en" lang="en">Distribute tasks through queues. Manage concurrency, priorities, backpressure and worker pools.</span><span data-language-content="zh" lang="zh-CN">通过 Queue 分发任务，控制并发、优先级、Backpressure 和 Worker Pool。</span></p></li>
+        <li><span data-language-content="en" lang="en">Scheduling &amp; multi-agent orchestration</span><span data-language-content="zh" lang="zh-CN">调度与多 Agent 编排</span><p class="muted"><span data-language-content="en" lang="en">Break complex tasks into subtasks. Coordinate DAGs, reviewers, handoffs and human-in-the-loop workflows.</span><span data-language-content="zh" lang="zh-CN">拆分复杂任务，组织 DAG、Reviewer、Handoff 和 Human-in-the-loop。</span></p></li>
       </ul>
     </section>
     <section>
-      <h2>可靠性与一致性</h2>
+      <h2><span data-language-content="en" lang="en">Reliability &amp; consistency</span><span data-language-content="zh" lang="zh-CN">可靠性与一致性</span></h2>
       <ul>
-        <li>Durable Execution<p class="muted">持久化执行状态，通过 Checkpoint、Replay、Resume 和 Recovery，在进程重启后恢复长任务。</p></li>
-        <li>Retry、Timeout 与幂等<p class="muted">为模型、工具、网络和 Worker 的失败设置重试与超时，避免推送代码、发邮件、创建资源等操作重复执行。</p></li>
-        <li>分布式状态与一致性<p class="muted">理解 Transaction、WAL、Lease、Heartbeat、Replication、Consistency 与故障恢复，协调 Orchestrator、Worker 和数据库的任务状态。</p></li>
+        <li><span data-language-content="en" lang="en">Durable execution</span><span data-language-content="zh" lang="zh-CN">持久化执行</span><p class="muted"><span data-language-content="en" lang="en">Persist execution state. Use checkpoints, replay, resume and recovery to continue long-running tasks after a process restart.</span><span data-language-content="zh" lang="zh-CN">持久化执行状态，通过 Checkpoint、Replay、Resume 和 Recovery，在进程重启后恢复长任务。</span></p></li>
+        <li><span data-language-content="en" lang="en">Retries, timeouts &amp; idempotency</span><span data-language-content="zh" lang="zh-CN">重试、超时与幂等</span><p class="muted"><span data-language-content="en" lang="en">Set retry and timeout policies for model, tool, network and worker failures. Prevent side effects such as code pushes, emails and resource creation from running twice.</span><span data-language-content="zh" lang="zh-CN">为模型、工具、网络和 Worker 的失败设置重试与超时，避免推送代码、发邮件、创建资源等操作重复执行。</span></p></li>
+        <li><span data-language-content="en" lang="en">Distributed state &amp; consistency</span><span data-language-content="zh" lang="zh-CN">分布式状态与一致性</span><p class="muted"><span data-language-content="en" lang="en">Understand transactions, WAL, leases, heartbeats, replication, consistency and recovery. Coordinate task state across orchestrators, workers and databases.</span><span data-language-content="zh" lang="zh-CN">理解 Transaction、WAL、Lease、Heartbeat、Replication、Consistency 与故障恢复，协调 Orchestrator、Worker 和数据库的任务状态。</span></p></li>
       </ul>
     </section>
     <section>
-      <h2>工具、隔离与权限</h2>
+      <h2><span data-language-content="en" lang="en">Tools, isolation &amp; permissions</span><span data-language-content="zh" lang="zh-CN">工具、隔离与权限</span></h2>
       <ul>
-        <li>Sandbox 与执行环境<p class="muted">为 Agent 隔离文件系统、进程、网络与资源，限制 CPU、内存和执行时间。</p></li>
-        <li>工具基础设施与 MCP<p class="muted">统一管理 Shell、Filesystem、Browser、Database 和 API 等工具；理解 MCP 作为工具与资源接口的作用。</p></li>
-        <li>权限、安全与 Secrets<p class="muted">控制文件、工具、网络与密钥访问，理解 Authentication、Authorization、ACL、Secret Management 和 Audit。</p></li>
+        <li><span data-language-content="en" lang="en">Sandboxes &amp; execution environments</span><span data-language-content="zh" lang="zh-CN">沙箱与执行环境</span><p class="muted"><span data-language-content="en" lang="en">Isolate each agent’s filesystem, processes, network and resources. Limit CPU, memory and execution time.</span><span data-language-content="zh" lang="zh-CN">为 Agent 隔离文件系统、进程、网络与资源，限制 CPU、内存和执行时间。</span></p></li>
+        <li><span data-language-content="en" lang="en">Tool infrastructure &amp; MCP</span><span data-language-content="zh" lang="zh-CN">工具基础设施与 MCP</span><p class="muted"><span data-language-content="en" lang="en">Manage shell, filesystem, browser, database and API tools through a common layer. Understand MCP as an interface for tools and resources.</span><span data-language-content="zh" lang="zh-CN">统一管理 Shell、Filesystem、Browser、Database 和 API 等工具；理解 MCP 作为工具与资源接口的作用。</span></p></li>
+        <li><span data-language-content="en" lang="en">Permissions, security &amp; secrets</span><span data-language-content="zh" lang="zh-CN">权限、安全与密钥</span><p class="muted"><span data-language-content="en" lang="en">Control access to files, tools, networks and secrets. Understand authentication, authorization, ACLs, secret management and auditing.</span><span data-language-content="zh" lang="zh-CN">控制文件、工具、网络与密钥访问，理解 Authentication、Authorization、ACL、Secret Management 和 Audit。</span></p></li>
       </ul>
     </section>
     <section>
-      <h2>观测与评估</h2>
+      <h2><span data-language-content="en" lang="en">Observability &amp; evaluation</span><span data-language-content="zh" lang="zh-CN">观测与评估</span></h2>
       <ul>
-        <li>可观测性与调试<p class="muted">用 Trace 记录完整执行过程，用 Metrics 观察延迟、队列、Token、成本、失败率和重试。</p></li>
-        <li>Evaluation 与 Replay<p class="muted">通过 Dataset、Rubric、Task Success Rate、Regression、Replay 和 LLM-as-Judge 持续评估任务结果。</p></li>
+        <li><span data-language-content="en" lang="en">Observability &amp; debugging</span><span data-language-content="zh" lang="zh-CN">可观测性与调试</span><p class="muted"><span data-language-content="en" lang="en">Trace the full execution of a task. Use metrics to monitor latency, queues, tokens, cost, failure rates and retries.</span><span data-language-content="zh" lang="zh-CN">用 Trace 记录完整执行过程，用 Metrics 观察延迟、队列、Token、成本、失败率和重试。</span></p></li>
+        <li><span data-language-content="en" lang="en">Evaluation &amp; replay</span><span data-language-content="zh" lang="zh-CN">评估与回放</span><p class="muted"><span data-language-content="en" lang="en">Evaluate results continuously with datasets, rubrics, task success rates, regression checks, replay and LLM-as-judge methods.</span><span data-language-content="zh" lang="zh-CN">通过 Dataset、Rubric、Task Success Rate、Regression、Replay 和 LLM-as-Judge 持续评估任务结果。</span></p></li>
       </ul>
     </section>
 
-    <nav class="page-footer" aria-label="返回"><a class="back-link" href="../storage.html">Storage</a><a class="back-link" href="../index.html">Home</a></nav>
+    <nav class="page-footer" aria-label="Back" data-label-en="Back" data-label-zh="返回"><a class="back-link" href="../storage.html"><span data-language-content="en" lang="en">Storage</span><span data-language-content="zh" lang="zh-CN">存货</span></a><a class="back-link" href="../index.html"><span data-language-content="en" lang="en">Home</span><span data-language-content="zh" lang="zh-CN">主页</span></a></nav>
   </main>
 </body>
 </html>
