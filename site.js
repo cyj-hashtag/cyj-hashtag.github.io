@@ -18,6 +18,18 @@
   let theme = validTheme(savedTheme) ? savedTheme : systemTheme.matches ? 'dark' : 'light';
   let language = validLanguage(read(languageKey)) ? read(languageKey) : browserLanguage();
 
+  const updateLanguageIndicator = () => {
+    const button = document.querySelector('[data-language-toggle]');
+    if (!button || !button.getClientRects().length) return;
+    const option = button.querySelector(`[data-locale-option="${language}"]`);
+    const bounds = button.getBoundingClientRect();
+    const selected = option.getBoundingClientRect();
+    button.style.setProperty('--locale-x', `${selected.left - bounds.left}px`);
+    button.style.setProperty('--locale-y', `${selected.bottom - bounds.top - 1}px`);
+    button.style.setProperty('--locale-width', `${selected.width}px`);
+    button.dataset.localeReady = '';
+  };
+
   const apply = () => {
     root.dataset.theme = theme;
     root.dataset.language = language;
@@ -48,6 +60,7 @@
       languageButton.setAttribute('aria-label', label);
       languageButton.setAttribute('aria-pressed', String(language === 'zh'));
       languageButton.title = label;
+      updateLanguageIndicator();
     }
   };
 
@@ -58,19 +71,25 @@
   const ready = () => {
     const controls = document.querySelector('.site-controls');
     if (!controls) return;
-    controls.querySelector('[data-theme-toggle]').addEventListener('click', () => {
+    const themeButton = controls.querySelector('[data-theme-toggle]');
+    themeButton.addEventListener('click', () => {
+      // A clicked theme control joins the page palette until the pointer leaves.
+      if (themeButton.matches(':hover')) themeButton.dataset.hoverSuppressed = '';
       theme = theme === 'dark' ? 'light' : 'dark';
       savedTheme = theme;
       write(themeKey, theme);
       apply();
     });
+    themeButton.addEventListener('pointerleave', () => { delete themeButton.dataset.hoverSuppressed; });
     controls.querySelector('[data-language-toggle]').addEventListener('click', () => {
       language = language === 'zh' ? 'en' : 'zh';
       write(languageKey, language);
       apply();
     });
-    apply();
     controls.hidden = false;
+    apply();
+    if (document.fonts) document.fonts.ready.then(updateLanguageIndicator);
+    window.addEventListener('resize', updateLanguageIndicator);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready, { once: true });
   else ready();
