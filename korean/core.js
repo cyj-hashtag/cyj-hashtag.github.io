@@ -1,4 +1,4 @@
-export const VERSION='2026.10.14.62505599eec2';
+export const VERSION='2026.10.14.c31f695c807c';
 export const INTERVALS=[1,3,7,14,30];
 const seoulDateFormatter=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'});
 export function seoulDay(at=Date.now()){return seoulDateFormatter.format(new Date(at));}

@@ -1,4 +1,4 @@
-const PREFIX='/korean/',CACHE='korean-2026.10.14.62505599eec2';
+const PREFIX='/korean/',CACHE='korean-2026.10.14.c31f695c807c';
 const SHELL=['','index.html','style.css','theme.js','app.js','core.js','store.js','assessment.js','data/content.json','data/revisions.json','icon.svg','manifest.webmanifest','fonts/cn.woff2','fonts/kr.woff2','fonts/ipa.woff2','fonts/jost-latin-400.woff2'];
 self.addEventListener('install',event=>event.waitUntil((async()=>{const c=await caches.open(CACHE);await c.addAll(SHELL.map(u=>new Request(PREFIX+u,{cache:'reload'})));await self.skipWaiting();})()));
 self.addEventListener('activate',event=>event.waitUntil((async()=>{for(const name of await caches.keys())if(name.startsWith('korean-')&&name!==CACHE)await caches.delete(name);await self.clients.claim();})()));
