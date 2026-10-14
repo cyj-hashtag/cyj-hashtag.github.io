@@ -1,0 +1,14 @@
+const PREFIX='/korean/',CACHE='korean-2026.10.14.a6a0ebc594c6';
+const SHELL=['','index.html','style.css','theme.js','app.js','core.js','store.js','assessment.js','data/content.json','data/revisions.json','icon.svg','manifest.webmanifest','fonts/cn.woff2','fonts/kr.woff2','fonts/ipa.woff2','fonts/jost-latin-400.woff2'];
+self.addEventListener('install',event=>event.waitUntil((async()=>{const c=await caches.open(CACHE);await c.addAll(SHELL.map(u=>new Request(PREFIX+u,{cache:'reload'})));await self.skipWaiting();})()));
+self.addEventListener('activate',event=>event.waitUntil((async()=>{for(const name of await caches.keys())if(name.startsWith('korean-')&&name!==CACHE)await caches.delete(name);await self.clients.claim();})()));
+async function rangeResponse(response,range){
+ const buffer=await response.arrayBuffer(),length=buffer.byteLength,m=/^bytes=(\d*)-(\d*)$/.exec(range||'');
+ const invalid=()=>new Response(null,{status:416,headers:{'Content-Range':`bytes */${length}`,'Accept-Ranges':'bytes'}});
+ if(!m||(!m[1]&&!m[2])||!length)return invalid();
+ const start=m[1]?Number(m[1]):Math.max(0,length-Number(m[2])),end=m[1]?(m[2]?Math.min(Number(m[2]),length-1):length-1):length-1;
+ if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start>=length||end<start)return invalid();
+ return new Response(buffer.slice(start,end+1),{status:206,headers:{'Content-Type':response.headers.get('Content-Type')||'audio/mpeg','Content-Range':`bytes ${start}-${end}/${length}`,'Accept-Ranges':'bytes','Content-Length':String(end-start+1)}});
+}
+self.addEventListener('fetch',event=>{const u=new URL(event.request.url);if(event.request.method!=='GET'||u.origin!==location.origin||!u.pathname.startsWith(PREFIX))return;event.respondWith((async()=>{const c=await caches.open(CACHE),key=event.request.mode==='navigate'?PREFIX:u.href;const hit=await c.match(key);if(hit){if(event.request.headers.has('Range')&&u.pathname.includes('/audio/'))return rangeResponse(hit,event.request.headers.get('Range'));return hit;}const r=await fetch(event.request);if(r.ok&&r.status===200)await c.put(key,r.clone());return r;})());});
+self.addEventListener('message',event=>{if(event.data?.type!=='CACHE_URLS')return;const port=event.ports[0];if(!port)return;event.waitUntil((async()=>{try{const urls=event.data.urls;if(!Array.isArray(urls)||urls.length>250)throw new Error('缓存请求过大。');const c=await caches.open(CACHE);for(let i=0;i<urls.length;i++){const u=new URL(urls[i]);if(u.origin!==location.origin||!u.pathname.startsWith(PREFIX))throw new Error('素材路径超出学习应用。');if(!await c.match(u.href)){const r=await fetch(u.href);if(!r.ok)throw new Error('部分素材下载失败，可稍后重试。');await c.put(u.href,r);}port.postMessage({count:i+1,total:urls.length});}port.postMessage({done:true});}catch(e){port.postMessage({error:e.message});}})());});
