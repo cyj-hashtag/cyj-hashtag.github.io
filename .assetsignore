@@ -1,0 +1,9 @@
+.git
+.github
+.wrangler
+.playwright-cli
+output
+.gitignore
+.nojekyll
+wrangler.jsonc
+DEPLOYMENT.md
