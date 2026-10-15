@@ -19,6 +19,10 @@ node D:\Workspace4All\KoreanStudy\api\node_modules\wrangler\bin\wrangler.js depl
 
 GitHub Actions continues publishing the GitHub Pages copy. Cloudflare updates currently require the separate Wrangler deploy command. `.assetsignore` excludes repository metadata and deployment configuration from the Cloudflare public assets.
 
+## Multiplayer game
+
+The Cloudflare Worker serves a same-origin game configuration and forwards only `POST /api/session` and WebSocket `/socket` to the existing Render backend. Other files use the static assets service directly. Browser cookies and Origin/Referer headers are not forwarded. Foreign browser origins are rejected. This keeps the original game backend running without changing its deployment or restarting its existing rooms.
+
 ## Learning progress
 
 The Korean app uses the same existing Cloudflare Worker and D1 learning profile on both origins. Its origin allowlist includes both websites. In the old learning app, use **同步与备份 → 导出进度** before moving to a new browser origin. In the new app, restore that backup and use the private pairing link for the same profile to keep devices synchronized. Private pairing credentials must never be committed to this repository.

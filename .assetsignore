@@ -6,4 +6,5 @@ output
 .gitignore
 .nojekyll
 wrangler.jsonc
+cloudflare-worker.mjs
 DEPLOYMENT.md
